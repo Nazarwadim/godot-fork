@@ -118,13 +118,6 @@ Vector3 Vector3::rotated(const Vector3 &p_axis, const real_t p_angle) const {
 	return r;
 }
 
-Vector3 Vector3::clamp(const Vector3 &p_min, const Vector3 &p_max) const {
-	return Vector3(
-			CLAMP(x, p_min.x, p_max.x),
-			CLAMP(y, p_min.y, p_max.y),
-			CLAMP(z, p_min.z, p_max.z));
-}
-
 void Vector3::snap(const Vector3 p_step) {
 	x = Math::snapped(x, p_step.x);
 	y = Math::snapped(y, p_step.y);
@@ -135,24 +128,6 @@ Vector3 Vector3::snapped(const Vector3 p_step) const {
 	Vector3 v = *this;
 	v.snap(p_step);
 	return v;
-}
-
-Vector3 Vector3::limit_length(const real_t p_len) const {
-	const real_t l = length();
-	Vector3 v = *this;
-	if (l > 0 && p_len < l) {
-		v /= l;
-		v *= p_len;
-	}
-
-	return v;
-}
-
-Vector3 Vector3::move_toward(const Vector3 &p_to, const real_t p_delta) const {
-	Vector3 v = *this;
-	Vector3 vd = p_to - v;
-	real_t len = vd.length();
-	return len <= p_delta || len < (real_t)CMP_EPSILON ? p_to : v + vd / len * p_delta;
 }
 
 Vector2 Vector3::octahedron_encode() const {
@@ -204,18 +179,6 @@ Basis Vector3::outer(const Vector3 &p_with) const {
 	basis.rows[1] = Vector3(y * p_with.x, y * p_with.y, y * p_with.z);
 	basis.rows[2] = Vector3(z * p_with.x, z * p_with.y, z * p_with.z);
 	return basis;
-}
-
-bool Vector3::is_equal_approx(const Vector3 &p_v) const {
-	return Math::is_equal_approx(x, p_v.x) && Math::is_equal_approx(y, p_v.y) && Math::is_equal_approx(z, p_v.z);
-}
-
-bool Vector3::is_zero_approx() const {
-	return Math::is_zero_approx(x) && Math::is_zero_approx(y) && Math::is_zero_approx(z);
-}
-
-bool Vector3::is_finite() const {
-	return Math::is_finite(x) && Math::is_finite(y) && Math::is_finite(z);
 }
 
 // slide returns the component of the vector along the given plane, specified by its normal vector.
