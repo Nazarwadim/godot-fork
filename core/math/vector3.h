@@ -398,10 +398,10 @@ _FORCE_INLINE_ real_t Vector3::length_squared() const {
 _FORCE_INLINE_ void Vector3::normalize() {
 	real_t l = x * x + y * y + z * z;
 	if (l != 0) {
-		l = Math::sqrt(l);
-		x /= l;
-		y /= l;
-		z /= l;
+		l = 1/Math::sqrt(l);
+		x *= l;
+		y *= l;
+		z *= l;
 	}
 }
 
