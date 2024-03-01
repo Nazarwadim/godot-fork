@@ -184,12 +184,10 @@ struct _NO_DISCARD_ Vector3 {
 };
 
 Vector3 Vector3::cross(const Vector3 &p_with) const {
-	Vector3 ret(
-			(y * p_with.z) - (z * p_with.y),
-			(z * p_with.x) - (x * p_with.z),
-			(x * p_with.y) - (y * p_with.x));
-
-	return ret;
+	return Vector3(
+		(y * p_with.z) - (z * p_with.y),
+		(z * p_with.x) - (x * p_with.z),
+		(x * p_with.y) - (y * p_with.x));
 }
 
 real_t Vector3::dot(const Vector3 &p_with) const {
@@ -390,30 +388,20 @@ _FORCE_INLINE_ real_t vec3_dot(const Vector3 &p_a, const Vector3 &p_b) {
 }
 
 real_t Vector3::length() const {
-	real_t x2 = x * x;
-	real_t y2 = y * y;
-	real_t z2 = z * z;
-
-	return Math::sqrt(x2 + y2 + z2);
+	return Math::sqrt(x * x + y * y + z * z);
 }
 
 real_t Vector3::length_squared() const {
-	real_t x2 = x * x;
-	real_t y2 = y * y;
-	real_t z2 = z * z;
-
-	return x2 + y2 + z2;
+	return x * x + y * y + z * z;
 }
 
 void Vector3::normalize() {
-	real_t lengthsq = length_squared();
-	if (lengthsq == 0) {
-		x = y = z = 0;
-	} else {
-		real_t length = Math::sqrt(lengthsq);
-		x /= length;
-		y /= length;
-		z /= length;
+	real_t l = x * x + y * y + z * z;
+	if (l != 0) {
+		l = Math::sqrt(l);
+		x /= l;
+		y /= l;
+		z /= l;
 	}
 }
 
