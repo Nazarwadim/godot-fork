@@ -185,9 +185,9 @@ struct _NO_DISCARD_ Vector3 {
 
 _FORCE_INLINE_ Vector3 Vector3::cross(const Vector3 &p_with) const {
 	return Vector3(
-		(y * p_with.z) - (z * p_with.y),
-		(z * p_with.x) - (x * p_with.z),
-		(x * p_with.y) - (y * p_with.x));
+			(y * p_with.z) - (z * p_with.y),
+			(z * p_with.x) - (x * p_with.z),
+			(x * p_with.y) - (y * p_with.x));
 }
 
 _FORCE_INLINE_ real_t Vector3::dot(const Vector3 &p_with) const {
@@ -216,8 +216,8 @@ _FORCE_INLINE_ Vector3 Vector3::round() const {
 
 _FORCE_INLINE_ Vector3 Vector3::lerp(const Vector3 &p_to, const real_t p_weight) const {
 	return Vector3(Math::lerp(x, p_to.x, p_weight),
-		Math::lerp(y, p_to.y, p_weight),
-		Math::lerp(z, p_to.z, p_weight));
+			Math::lerp(y, p_to.y, p_weight),
+			Math::lerp(z, p_to.z, p_weight));
 }
 
 _FORCE_INLINE_ Vector3 Vector3::clamp(const Vector3 &p_min, const Vector3 &p_max) const {
@@ -420,7 +420,7 @@ _FORCE_INLINE_ real_t Vector3::length_squared() const {
 _FORCE_INLINE_ void Vector3::normalize() {
 	real_t l = x * x + y * y + z * z;
 	if (l != 0) {
-		l = 1/Math::sqrt(l);
+		l = 1 / Math::sqrt(l);
 		x *= l;
 		y *= l;
 		z *= l;
