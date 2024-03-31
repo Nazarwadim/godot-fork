@@ -67,7 +67,7 @@ template <typename TKey, typename TValue,
 		typename Allocator = DefaultTypedAllocator<HashMapElement<TKey, TValue>>>
 class HashMap {
 public:
-	static constexpr uint32_t MIN_CAPACITY_INDEX = 2; // Use a prime.
+	static constexpr uint32_t INITIAL_CAPACITY = 32;
 	static constexpr float MAX_OCCUPANCY = 0.75;
 	static constexpr uint32_t EMPTY_HASH = 0;
 
@@ -78,7 +78,8 @@ private:
 	HashMapElement<TKey, TValue> *head_element = nullptr;
 	HashMapElement<TKey, TValue> *tail_element = nullptr;
 
-	uint32_t capacity_index = 0;
+	// Due to optimization, this is `capacity - 1`. Use + 1 to get normal capacity.
+	uint32_t capacity = 0;
 	uint32_t num_elements = 0;
 
 	_FORCE_INLINE_ uint32_t _hash(const TKey &p_key) const {
@@ -91,48 +92,57 @@ private:
 		return hash;
 	}
 
-	static _FORCE_INLINE_ uint32_t _get_probe_length(const uint32_t p_pos, const uint32_t p_hash, const uint32_t p_capacity, const uint64_t p_capacity_inv) {
-		const uint32_t original_pos = fastmod(p_hash, p_capacity_inv, p_capacity);
-		return fastmod(p_pos - original_pos + p_capacity, p_capacity_inv, p_capacity);
+	_FORCE_INLINE_ uint32_t _get_probe_length(uint32_t p_pos, uint32_t p_hash) const {
+		const uint32_t original_pos = p_hash & capacity;
+		if (unlikely(p_pos < original_pos)) {
+			return capacity + 1 - original_pos + p_pos;
+		}
+		return p_pos - original_pos;
 	}
 
 	bool _lookup_pos(const TKey &p_key, uint32_t &r_pos) const {
-		if (elements == nullptr || num_elements == 0) {
-			return false; // Failed lookups, no elements
+		return _lookup_pos_with_hash(p_key, r_pos, _hash(p_key));
+	}
+
+	bool _lookup_pos_with_hash(const TKey &p_key, uint32_t &r_pos, uint32_t p_hash) const {
+		uint32_t pos = p_hash & capacity;
+
+		if (hashes[pos] == p_hash && Comparator::compare(elements[pos]->data.key, p_key)) {
+			r_pos = pos;
+			return true;
 		}
 
-		const uint32_t capacity = hash_table_size_primes[capacity_index];
-		const uint64_t capacity_inv = hash_table_size_primes_inv[capacity_index];
-		uint32_t hash = _hash(p_key);
-		uint32_t pos = fastmod(hash, capacity_inv, capacity);
-		uint32_t distance = 0;
+		if (hashes[pos] == EMPTY_HASH) {
+			return false;
+		}
 
+		// A collision occurred.
+		pos = (pos + 1) & capacity;
+		uint32_t distance = 1;
 		while (true) {
-			if (hashes[pos] == EMPTY_HASH) {
-				return false;
-			}
-
-			if (distance > _get_probe_length(pos, hashes[pos], capacity, capacity_inv)) {
-				return false;
-			}
-
-			if (hashes[pos] == hash && Comparator::compare(elements[pos]->data.key, p_key)) {
+			if (hashes[pos] == p_hash && Comparator::compare(elements[pos]->data.key, p_key)) {
 				r_pos = pos;
 				return true;
 			}
 
-			pos = fastmod((pos + 1), capacity_inv, capacity);
+			if (hashes[pos] == EMPTY_HASH) {
+				return false;
+			}
+
+			if (distance > _get_probe_length(pos, hashes[pos])) {
+				return false;
+			}
+
+			pos = (pos + 1) & capacity;
 			distance++;
 		}
 	}
 
-	void _insert_with_hash(uint32_t p_hash, HashMapElement<TKey, TValue> *p_value) {
-		const uint32_t capacity = hash_table_size_primes[capacity_index];
-		const uint64_t capacity_inv = hash_table_size_primes_inv[capacity_index];
+	void _insert_with_hash_and_element(uint32_t p_hash, HashMapElement<TKey, TValue> *p_value) {
 		uint32_t hash = p_hash;
 		HashMapElement<TKey, TValue> *value = p_value;
 		uint32_t distance = 0;
-		uint32_t pos = fastmod(hash, capacity_inv, capacity);
+		uint32_t pos = p_hash & capacity;
 
 		while (true) {
 			if (hashes[pos] == EMPTY_HASH) {
@@ -145,118 +155,95 @@ private:
 			}
 
 			// Not an empty slot, let's check the probing length of the existing one.
-			uint32_t existing_probe_len = _get_probe_length(pos, hashes[pos], capacity, capacity_inv);
+			uint32_t existing_probe_len = _get_probe_length(pos, hashes[pos]);
 			if (existing_probe_len < distance) {
 				SWAP(hash, hashes[pos]);
 				SWAP(value, elements[pos]);
 				distance = existing_probe_len;
 			}
 
-			pos = fastmod((pos + 1), capacity_inv, capacity);
+			pos = (pos + 1) & capacity;
 			distance++;
 		}
 	}
 
-	void _resize_and_rehash(uint32_t p_new_capacity_index) {
-		uint32_t old_capacity = hash_table_size_primes[capacity_index];
+	void _resize_and_rehash(uint32_t p_new_capacity) {
+		uint32_t old_capacity = capacity;
 
-		// Capacity can't be 0.
-		capacity_index = MAX((uint32_t)MIN_CAPACITY_INDEX, p_new_capacity_index);
-
-		uint32_t capacity = hash_table_size_primes[capacity_index];
+		// Capacity can't be 0 and must be 2^n - 1.
+		capacity = MAX(4u, p_new_capacity);
+		capacity = next_power_of_2(capacity - 1) - 1;
 
 		HashMapElement<TKey, TValue> **old_elements = elements;
 		uint32_t *old_hashes = hashes;
 
 		num_elements = 0;
-		hashes = reinterpret_cast<uint32_t *>(Memory::alloc_static(sizeof(uint32_t) * capacity));
-		elements = reinterpret_cast<HashMapElement<TKey, TValue> **>(Memory::alloc_static(sizeof(HashMapElement<TKey, TValue> *) * capacity));
+		hashes = reinterpret_cast<uint32_t *>(Memory::alloc_static(sizeof(uint32_t) * (capacity + 1)));
+		elements = reinterpret_cast<HashMapElement<TKey, TValue> **>(Memory::alloc_static(sizeof(HashMapElement<TKey, TValue> *) * (capacity + 1)));
 
-		for (uint32_t i = 0; i < capacity; i++) {
+		for (uint32_t i = 0; i < capacity + 1; i++) {
 			hashes[i] = 0;
 			elements[i] = nullptr;
 		}
 
-		if (old_capacity == 0) {
+		if (old_elements == nullptr) {
 			// Nothing to do.
 			return;
 		}
 
-		for (uint32_t i = 0; i < old_capacity; i++) {
+		for (uint32_t i = 0; i < old_capacity + 1; i++) {
 			if (old_hashes[i] == EMPTY_HASH) {
 				continue;
 			}
 
-			_insert_with_hash(old_hashes[i], old_elements[i]);
+			_insert_with_hash_and_element(old_hashes[i], old_elements[i]);
 		}
 
 		Memory::free_static(old_elements);
 		Memory::free_static(old_hashes);
 	}
 
-	_FORCE_INLINE_ HashMapElement<TKey, TValue> *_insert(const TKey &p_key, const TValue &p_value, bool p_front_insert = false) {
-		uint32_t capacity = hash_table_size_primes[capacity_index];
-		if (unlikely(elements == nullptr)) {
-			// Allocate on demand to save memory.
-
-			hashes = reinterpret_cast<uint32_t *>(Memory::alloc_static(sizeof(uint32_t) * capacity));
-			elements = reinterpret_cast<HashMapElement<TKey, TValue> **>(Memory::alloc_static(sizeof(HashMapElement<TKey, TValue> *) * capacity));
-
-			for (uint32_t i = 0; i < capacity; i++) {
-				hashes[i] = EMPTY_HASH;
-				elements[i] = nullptr;
-			}
+	// This method does not check that the key is in the table.
+	// Use it if you know for sure that the key is new.
+	_FORCE_INLINE_ HashMapElement<TKey, TValue> *_insert_with_hash(const TKey &p_key, const TValue &p_value, uint32_t p_hash, bool p_front_insert = false) {
+		if (num_elements + 1 > MAX_OCCUPANCY * capacity) {
+			_resize_and_rehash(capacity * 2);
 		}
 
-		uint32_t pos = 0;
-		bool exists = _lookup_pos(p_key, pos);
+		HashMapElement<TKey, TValue> *elem = element_alloc.new_allocation(HashMapElement<TKey, TValue>(p_key, p_value));
 
-		if (exists) {
-			elements[pos]->data.value = p_value;
-			return elements[pos];
+		if (tail_element == nullptr) {
+			head_element = elem;
+			tail_element = elem;
+		} else if (p_front_insert) {
+			head_element->prev = elem;
+			elem->next = head_element;
+			head_element = elem;
 		} else {
-			if (num_elements + 1 > MAX_OCCUPANCY * capacity) {
-				ERR_FAIL_COND_V_MSG(capacity_index + 1 == HASH_TABLE_SIZE_MAX, nullptr, "Hash table maximum capacity reached, aborting insertion.");
-				_resize_and_rehash(capacity_index + 1);
-			}
-
-			HashMapElement<TKey, TValue> *elem = element_alloc.new_allocation(HashMapElement<TKey, TValue>(p_key, p_value));
-
-			if (tail_element == nullptr) {
-				head_element = elem;
-				tail_element = elem;
-			} else if (p_front_insert) {
-				head_element->prev = elem;
-				elem->next = head_element;
-				head_element = elem;
-			} else {
-				tail_element->next = elem;
-				elem->prev = tail_element;
-				tail_element = elem;
-			}
-
-			uint32_t hash = _hash(p_key);
-			_insert_with_hash(hash, elem);
-			return elem;
+			tail_element->next = elem;
+			elem->prev = tail_element;
+			tail_element = elem;
 		}
+
+		_insert_with_hash_and_element(p_hash, elem);
+		return elem;
 	}
 
 public:
-	_FORCE_INLINE_ uint32_t get_capacity() const { return hash_table_size_primes[capacity_index]; }
+	_FORCE_INLINE_ uint32_t get_capacity() const { return capacity + 1; }
 	_FORCE_INLINE_ uint32_t size() const { return num_elements; }
 
 	/* Standard Godot Container API */
 
-	bool is_empty() const {
+	_FORCE_INLINE_ bool is_empty() const {
 		return num_elements == 0;
 	}
 
 	void clear() {
-		if (elements == nullptr || num_elements == 0) {
+		if (num_elements == 0) {
 			return;
 		}
-		uint32_t capacity = hash_table_size_primes[capacity_index];
-		for (uint32_t i = 0; i < capacity; i++) {
+		for (uint32_t i = 0; i < capacity + 1; i++) {
 			if (hashes[i] == EMPTY_HASH) {
 				continue;
 			}
@@ -271,21 +258,21 @@ public:
 		num_elements = 0;
 	}
 
-	TValue &get(const TKey &p_key) {
+	_FORCE_INLINE_ TValue &get(const TKey &p_key) {
 		uint32_t pos = 0;
 		bool exists = _lookup_pos(p_key, pos);
 		CRASH_COND_MSG(!exists, "HashMap key not found.");
 		return elements[pos]->data.value;
 	}
 
-	const TValue &get(const TKey &p_key) const {
+	_FORCE_INLINE_ const TValue &get(const TKey &p_key) const {
 		uint32_t pos = 0;
 		bool exists = _lookup_pos(p_key, pos);
 		CRASH_COND_MSG(!exists, "HashMap key not found.");
 		return elements[pos]->data.value;
 	}
 
-	const TValue *getptr(const TKey &p_key) const {
+	_FORCE_INLINE_ const TValue *getptr(const TKey &p_key) const {
 		uint32_t pos = 0;
 		bool exists = _lookup_pos(p_key, pos);
 
@@ -295,7 +282,7 @@ public:
 		return nullptr;
 	}
 
-	TValue *getptr(const TKey &p_key) {
+	_FORCE_INLINE_ TValue *getptr(const TKey &p_key) {
 		uint32_t pos = 0;
 		bool exists = _lookup_pos(p_key, pos);
 
@@ -318,14 +305,12 @@ public:
 			return false;
 		}
 
-		const uint32_t capacity = hash_table_size_primes[capacity_index];
-		const uint64_t capacity_inv = hash_table_size_primes_inv[capacity_index];
-		uint32_t next_pos = fastmod((pos + 1), capacity_inv, capacity);
-		while (hashes[next_pos] != EMPTY_HASH && _get_probe_length(next_pos, hashes[next_pos], capacity, capacity_inv) != 0) {
+		uint32_t next_pos = (pos + 1) & capacity;
+		while (hashes[next_pos] != EMPTY_HASH && _get_probe_length(next_pos, hashes[next_pos]) != 0) {
 			SWAP(hashes[next_pos], hashes[pos]);
 			SWAP(elements[next_pos], elements[pos]);
 			pos = next_pos;
-			next_pos = fastmod((pos + 1), capacity_inv, capacity);
+			next_pos = (next_pos + 1) & capacity;
 		}
 
 		hashes[pos] = EMPTY_HASH;
@@ -365,24 +350,22 @@ public:
 		HashMapElement<TKey, TValue> *element = elements[pos];
 
 		// Delete the old entries in hashes and elements.
-		const uint32_t capacity = hash_table_size_primes[capacity_index];
-		const uint64_t capacity_inv = hash_table_size_primes_inv[capacity_index];
-		uint32_t next_pos = fastmod((pos + 1), capacity_inv, capacity);
-		while (hashes[next_pos] != EMPTY_HASH && _get_probe_length(next_pos, hashes[next_pos], capacity, capacity_inv) != 0) {
+		uint32_t next_pos = (pos + 1) & capacity;
+		while (hashes[next_pos] != EMPTY_HASH && _get_probe_length(next_pos, hashes[next_pos]) != 0) {
 			SWAP(hashes[next_pos], hashes[pos]);
 			SWAP(elements[next_pos], elements[pos]);
 			pos = next_pos;
-			next_pos = fastmod((pos + 1), capacity_inv, capacity);
+			next_pos = (next_pos + 1) & capacity;
 		}
 		hashes[pos] = EMPTY_HASH;
 		elements[pos] = nullptr;
-		// _insert_with_hash will increment this again.
+		// _insert_with_hash_and_element will increment this again.
 		num_elements--;
 
 		// Update the HashMapElement with the new key and reinsert it.
 		const_cast<TKey &>(element->data.key) = p_new_key;
 		uint32_t hash = _hash(p_new_key);
-		_insert_with_hash(hash, element);
+		_insert_with_hash_and_element(hash, element);
 
 		return true;
 	}
@@ -390,22 +373,8 @@ public:
 	// Reserves space for a number of elements, useful to avoid many resizes and rehashes.
 	// If adding a known (possibly large) number of elements at once, must be larger than old capacity.
 	void reserve(uint32_t p_new_capacity) {
-		uint32_t new_index = capacity_index;
-
-		while (hash_table_size_primes[new_index] < p_new_capacity) {
-			ERR_FAIL_COND_MSG(new_index + 1 == (uint32_t)HASH_TABLE_SIZE_MAX, nullptr);
-			new_index++;
-		}
-
-		if (new_index == capacity_index) {
-			return;
-		}
-
-		if (elements == nullptr) {
-			capacity_index = new_index;
-			return; // Unallocated yet.
-		}
-		_resize_and_rehash(new_index);
+		ERR_FAIL_COND_MSG(p_new_capacity < get_capacity(), "It is impossible to reserve less capacity than is currently available.");
+		_resize_and_rehash(p_new_capacity);
 	}
 
 	/** Iterator API **/
@@ -541,24 +510,33 @@ public:
 
 	TValue &operator[](const TKey &p_key) {
 		uint32_t pos = 0;
-		bool exists = _lookup_pos(p_key, pos);
-		if (!exists) {
-			return _insert(p_key, TValue())->data.value;
-		} else {
+		const uint32_t hash = _hash(p_key);
+		bool exists = _lookup_pos_with_hash(p_key, pos, hash);
+		if (exists) {
 			return elements[pos]->data.value;
+		} else {
+			return _insert_with_hash(p_key, TValue(), hash)->data.value;
 		}
 	}
 
 	/* Insert */
 
 	Iterator insert(const TKey &p_key, const TValue &p_value, bool p_front_insert = false) {
-		return Iterator(_insert(p_key, p_value, p_front_insert));
+		uint32_t pos = 0;
+		const uint32_t hash = _hash(p_key);
+		bool exists = _lookup_pos_with_hash(p_key, pos, hash);
+		if (!exists) {
+			return Iterator(_insert_with_hash(p_key, p_value, hash, p_front_insert));
+		} else {
+			elements[pos]->data.value = p_value;
+			return Iterator(elements[pos]);
+		}
 	}
 
 	/* Constructors */
 
 	HashMap(const HashMap &p_other) {
-		reserve(hash_table_size_primes[p_other.capacity_index]);
+		_resize_and_rehash(p_other.capacity);
 
 		if (p_other.num_elements == 0) {
 			return;
@@ -577,10 +555,8 @@ public:
 			clear();
 		}
 
-		reserve(hash_table_size_primes[p_other.capacity_index]);
-
-		if (p_other.elements == nullptr) {
-			return; // Nothing to copy.
+		if (p_other.capacity != capacity) {
+			_resize_and_rehash(p_other.capacity);
 		}
 
 		for (const KeyValue<TKey, TValue> &E : p_other) {
@@ -589,12 +565,10 @@ public:
 	}
 
 	HashMap(uint32_t p_initial_capacity) {
-		// Capacity can't be 0.
-		capacity_index = 0;
-		reserve(p_initial_capacity);
+		_resize_and_rehash(p_initial_capacity);
 	}
 	HashMap() {
-		capacity_index = MIN_CAPACITY_INDEX;
+		_resize_and_rehash(INITIAL_CAPACITY);
 	}
 
 	uint32_t debug_get_hash(uint32_t p_index) {
@@ -615,10 +589,8 @@ public:
 	~HashMap() {
 		clear();
 
-		if (elements != nullptr) {
-			Memory::free_static(elements);
-			Memory::free_static(hashes);
-		}
+		Memory::free_static(elements);
+		Memory::free_static(hashes);
 	}
 };
 
