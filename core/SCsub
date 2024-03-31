@@ -238,6 +238,8 @@ SConscript("string/SCsub")
 SConscript("config/SCsub")
 SConscript("error/SCsub")
 
+SConscript("benchmark_hash_map/SCsub")
+
 
 # Build it all as a library
 lib = env.add_library("core", env.core_sources)

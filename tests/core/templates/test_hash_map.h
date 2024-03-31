@@ -128,6 +128,33 @@ TEST_CASE("[HashMap] Const iteration") {
 		++idx;
 	}
 }
+
+TEST_CASE("[HashMap] Clear") {
+	HashMap<int, int> map;
+	map.insert(42, 84);
+	map.insert(123, 12385);
+	map.insert(0, 12934);
+
+	map.clear();
+	CHECK(map.size() == 0);
+	CHECK(map.is_empty());
+}
+
+TEST_CASE("[HashMap] Get") {
+	HashMap<int, int> map;
+	map.insert(42, 84);
+	map.insert(123, 12385);
+	map.insert(0, 12934);
+
+	CHECK(map.get(42) == 84);
+	map.get(123) = 10;
+	CHECK(map.get(123) == 10);
+	CHECK(map.getptr(-10) == nullptr);
+	int *value = map.getptr(0);
+	*value = 1;
+	CHECK(*map.getptr(0) == 1);
+}
+
 } // namespace TestHashMap
 
 #endif // TEST_HASH_MAP_H
