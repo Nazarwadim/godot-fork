@@ -3,6 +3,7 @@
 #include "core/string/print_string.h"
 #include "core/templates/hash_map.h"
 #include "core/templates/oa_hash_map.h"
+#include "core/templates/rb_set.h"
 #include "core/templates/vmap.h"
 #include "new_hash_set.h"
 #include "old_hash_map.h"
@@ -35,15 +36,15 @@ struct Hasher {
 
 using namespace std;
 
-HashMap1<Variant, long, VariantHasher> before_arr0[10];
-HashMap<Variant, long, VariantHasher> after_arr0[10];
+HashMap4<int, long> before_arr0[10];
+HashMap<int, long> after_arr0[10];
 
 HashSet1<int> after_set_arr[10];
 HashSet<int> before_set_arr[10];
 
 VMap<Vector3, long> map1[10];
-OAHashMap<Variant, long, VariantHasher> after_oa_arr[10];
-OAHashMap1<Variant, long, VariantHasher> before_oa_arr[10];
+OAHashMap<Variant, int, VariantHasher, VariantComparator> after_oa_arr[10];
+OAHashMap1<Variant, int, VariantHasher, VariantComparator> before_oa_arr[10];
 
 Vector<int> rand_vec;
 Vector<int> rand_vec2;
@@ -51,10 +52,10 @@ int found1;
 int found2;
 bool has1;
 bool has2;
-uint32_t count = 3;
+uint32_t count = 5;
 
 void insert_random_variables_in_vec() {
-	for (uint32_t i = 0; i < 100000000; i++) {
+	for (uint32_t i = 1000000000; i < 1000000000 + 200000000; i+=10) {
 		rand_vec.push_back(rand());
 	}
 }
@@ -113,38 +114,24 @@ __attribute__((noinline)) void test_hash_map12() {
 	print_line("Time set after:", end3 - start3);
 }
 
-__attribute__((noinline)) void test_hash_map_or() {
-	// for (int i = 0; i < 10; i++) {
-	// 	before_arr0[i].reserve(5 * pow(count, i + 1));
-	// 	after_arr0[i].reserve(5 * pow(count, i + 1));
-	// }
-
+__attribute__((noinline)) void test_hash_map_or_before() {
+	uint64_t general_time = OS::get_singleton()->get_ticks_msec();
 	for (int ik = 0; ik < 10; ik++) {
 		uint32_t c = pow(count, ik + 1);
 		auto clock_start_insert = chrono::system_clock::now();
 		for (uint32_t i = 0; i < c; i++) {
-			before_arr0[ik][Vector3(rand_vec[i], rand_vec[i], rand_vec[i])] = rand_vec[i] * rand_vec[i];
+			before_arr0[ik][rand_vec[i]] = rand_vec[i] * rand_vec[i];
 		}
 		auto clock_now_insert = chrono::system_clock::now();
 		auto currentTime = float(chrono::duration_cast<chrono::microseconds>(clock_now_insert - clock_start_insert).count());
 		print_line("Time insert before:", currentTime, "");
 	}
-	for (int ik = 0; ik < 10; ik++) {
-		uint32_t c = pow(count, ik + 1);
-		auto clock_start_insert = chrono::system_clock::now();
-		for (uint32_t i = 0; i < c; i++) {
-			after_arr0[ik][Vector3(rand_vec[i], rand_vec[i], rand_vec[i])] = rand_vec[i] * rand_vec[i];
-		}
-		auto clock_now_insert = chrono::system_clock::now();
-		auto currentTime = float(chrono::duration_cast<chrono::microseconds>(clock_now_insert - clock_start_insert).count());
-		print_line("Time insert after:", currentTime);
-	}
-	print_line(" ");
+
 	for (int ik = 0; ik < 10; ik++) {
 		uint32_t c = pow(count, ik + 1);
 		auto clock_start = chrono::system_clock::now();
-		for (uint32_t i = 0; i < 2 * 1000000; i++) {
-			auto *e = before_arr0[ik].getptr(Vector3(rand_vec[i], rand_vec[i], rand_vec[i]));
+		for (uint32_t i = 0; i < 2 * c; i++) {
+			auto *e = before_arr0[ik].getptr(rand_vec[i]);
 			if (e != nullptr) {
 				found1 = *e;
 			}
@@ -153,11 +140,28 @@ __attribute__((noinline)) void test_hash_map_or() {
 		auto currentTime = float(chrono::duration_cast<chrono::nanoseconds>(clock_now - clock_start).count());
 		print_line("Time find before:", currentTime);
 	}
+	general_time = OS::get_singleton()->get_ticks_msec() - general_time;
+	print_line("General_time msec:", general_time);
+}
+
+__attribute__((noinline)) void test_hash_map_or_after() {
+	uint64_t general_time = OS::get_singleton()->get_ticks_msec();
+	for (int ik = 0; ik < 10; ik++) {
+		uint32_t c = pow(count, ik + 1);
+		auto clock_start_insert = chrono::system_clock::now();
+		for (uint32_t i = 0; i < c; i++) {
+			after_arr0[ik][rand_vec[i]] = rand_vec[i] * rand_vec[i];
+		}
+		auto clock_now_insert = chrono::system_clock::now();
+		auto currentTime = float(chrono::duration_cast<chrono::microseconds>(clock_now_insert - clock_start_insert).count());
+		print_line("Time insert after:", currentTime);
+	}
+
 	for (int ik = 0; ik < 10; ik++) {
 		uint32_t c = pow(count, ik + 1);
 		auto clock_start = chrono::system_clock::now();
-		for (uint32_t i = 0; i < 2 * 1000000; i++) {
-			auto *e = after_arr0[ik].getptr(Vector3(rand_vec[i], rand_vec[i], rand_vec[i]));
+		for (uint32_t i = 0; i < 2 * c; i++) {
+			auto *e = after_arr0[ik].getptr(rand_vec[i]);
 			if (e != nullptr) {
 				found1 = *e;
 			}
@@ -166,6 +170,20 @@ __attribute__((noinline)) void test_hash_map_or() {
 		auto currentTime = float(chrono::duration_cast<chrono::nanoseconds>(clock_now - clock_start).count());
 		print_line("Time find after:", currentTime);
 	}
+	general_time = OS::get_singleton()->get_ticks_msec() - general_time;
+	print_line("General_time msec:", general_time);
+}
+
+__attribute__((noinline)) void test_hash_map_or() {
+	// for (int i = 0; i < 10; i++) {
+	// 	before_arr0[i].reserve(5 * pow(count, i + 1));
+	// 	after_arr0[i].reserve(5 * pow(count, i + 1));
+	// }
+
+	test_hash_map_or_before();
+
+	print_line(" ");
+	test_hash_map_or_after();
 }
 
 __attribute__((noinline)) void test_hash_map_set() {
@@ -197,7 +215,7 @@ __attribute__((noinline)) void test_hash_map_set() {
 	for (int ik = 0; ik < 10; ik++) {
 		uint32_t c = pow(count, ik + 1);
 		auto clock_start = chrono::system_clock::now();
-		for (uint32_t i = 0; i < 2 * 1000000; i++) {
+		for (uint32_t i = 0; i < 2 * 100000; i++) {
 			auto it = before_set_arr[ik].find(rand_vec[i]);
 			if (it != before_set_arr[ik].end()) {
 				found1 = rand_vec[i];
@@ -210,7 +228,7 @@ __attribute__((noinline)) void test_hash_map_set() {
 	for (int ik = 0; ik < 10; ik++) {
 		uint32_t c = pow(count, ik + 1);
 		auto clock_start = chrono::system_clock::now();
-		for (uint32_t i = 0; i < 2 * 1000000; i++) {
+		for (uint32_t i = 0; i < 2 * 100000; i++) {
 			auto it = after_set_arr[ik].find(rand_vec[i]);
 			if (it != after_set_arr[ik].end()) {
 				found1 = rand_vec[i];
@@ -227,7 +245,7 @@ __attribute__((noinline)) void test_oa_before() {
 		uint32_t c = pow(count, ik + 1);
 		auto clock_start_insert = chrono::system_clock::now();
 		for (uint32_t i = 0; i < c; i++) {
-			before_oa_arr[ik].set(Vector3(rand_vec[i], rand_vec[i], rand_vec[i]), rand_vec[i] * rand_vec[i]);
+			before_oa_arr[ik].set(rand_vec[i], rand_vec[i] * rand_vec[i]);
 		}
 		auto clock_now_insert = chrono::system_clock::now();
 		auto currentTime = float(chrono::duration_cast<chrono::microseconds>(clock_now_insert - clock_start_insert).count());
@@ -236,9 +254,9 @@ __attribute__((noinline)) void test_oa_before() {
 	for (int ik = 0; ik < 10; ik++) {
 		uint32_t c = pow(count, ik + 1);
 		auto clock_start = chrono::system_clock::now();
-		for (uint32_t i = 0; i < 2 * 1000000; i++) {
-			long data = 0;
-			if (before_oa_arr[ik].lookup(Vector3(rand_vec[i], rand_vec[i], rand_vec[i]), data)) {
+		for (uint32_t i = 0; i < 2 * 100000; i++) {
+			int data = 0;
+			if (before_oa_arr[ik].lookup(rand_vec[i], data)) {
 				found1 = data;
 			}
 		}
@@ -253,7 +271,7 @@ __attribute__((noinline)) void test_oa_after() {
 		uint32_t c = pow(count, ik + 1);
 		auto clock_start_insert = chrono::system_clock::now();
 		for (uint32_t i = 0; i < c; i++) {
-			after_oa_arr[ik].set(Vector3(rand_vec[i], rand_vec[i], rand_vec[i]), rand_vec[i] * rand_vec[i]);
+			after_oa_arr[ik].set(rand_vec[i], rand_vec[i] * rand_vec[i]);
 		}
 		auto clock_now_insert = chrono::system_clock::now();
 		auto currentTime = float(chrono::duration_cast<chrono::microseconds>(clock_now_insert - clock_start_insert).count());
@@ -262,9 +280,9 @@ __attribute__((noinline)) void test_oa_after() {
 	for (int ik = 0; ik < 10; ik++) {
 		uint32_t c = pow(count, ik + 1);
 		auto clock_start = chrono::system_clock::now();
-		for (uint32_t i = 0; i < 2 * 1000000; i++) {
-			long data = 0;
-			if (after_oa_arr[ik].lookup(Vector3(rand_vec[i], rand_vec[i], rand_vec[i]), data)) {
+		for (uint32_t i = 0; i < 2 * 100000; i++) {
+			int data = 0;
+			if (after_oa_arr[ik].lookup(rand_vec[i], data)) {
 				found1 = data;
 			}
 		}
@@ -291,7 +309,7 @@ void test_hash_third() {
 	for (int ik = 0; ik < 10; ik++) {
 		uint32_t c = pow(count, ik + 1);
 		auto clock_start = chrono::system_clock::now();
-		for (uint32_t i = 0; i < 2 * 1000000; i++) {
+		for (uint32_t i = 0; i < 2 * 100000; i++) {
 			auto e = map1[ik].find(Vector3(rand_vec[i], rand_vec[i], rand_vec[i]));
 
 			if (e != -1) {
@@ -303,17 +321,18 @@ void test_hash_third() {
 		print_line("Time find stl:", currentTime);
 	}
 }
-
+int sum = 0;
 void main_benchmark() {
 	insert_random_variables_in_vec();
-
-	test_hash_map_or();
-	print_line(" ");
-	print_line(" ");
+	real_t *_ptr = nullptr;
 	test_oa_before();
-	print_line(" ");
 	test_oa_after();
-	print_line(" ");
-	print_line(" ");
-	test_hash_third();
+
+	// print_line(" ");
+	// test_oa_before();
+	// print_line(" ");
+	// test_oa_after();
+	// print_line(" ");
+	// print_line(" ");
+	// test_hash_third();
 }

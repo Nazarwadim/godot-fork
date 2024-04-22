@@ -60,9 +60,6 @@ template <typename TKey, typename TValue,
 		typename Hasher = HashMapHasherDefault,
 		typename Comparator = HashMapComparatorDefault<TKey>>
 class OAHashMap {
-public:
-	static constexpr float MAX_OCCUPANCY = 0.7;
-
 private:
 	OAHashMapElement<TKey, TValue> *elements = nullptr;
 	uint32_t *hashes = nullptr;
@@ -84,12 +81,13 @@ private:
 		return hash;
 	}
 
-	_FORCE_INLINE_ uint32_t _get_probe_length(uint32_t p_pos, uint32_t p_hash) const {
-		const uint32_t original_pos = p_hash & capacity;
-		if (unlikely(p_pos < original_pos)) {
-			return capacity + 1 - original_pos + p_pos;
-		}
-		return p_pos - original_pos;
+	static _FORCE_INLINE_ uint32_t _get_resize_count(uint32_t p_capacity) {
+		return p_capacity ^ (p_capacity + 1) >> 2; // = get_capacity() * 0.75 - 1; Works only if p_capacity = 2^n - 1.
+	}
+
+	static _FORCE_INLINE_ uint32_t _get_probe_length(uint32_t p_pos, uint32_t p_hash, uint32_t p_local_capacity) {
+		const uint32_t original_pos = p_hash & p_local_capacity;
+		return (p_pos - original_pos + p_local_capacity + 1) & p_local_capacity;
 	}
 
 	_FORCE_INLINE_ void _construct(uint32_t p_pos, uint32_t p_hash, const TKey &p_key, const TValue &p_value) {
@@ -111,11 +109,11 @@ private:
 		num_elements++;
 	}
 
-	bool _lookup_pos(const TKey &p_key, uint32_t &r_pos) const {
+	_FORCE_INLINE_ bool _lookup_pos(const TKey &p_key, uint32_t &r_pos) const {
 		return _lookup_pos_with_hash(p_key, r_pos, _hash(p_key));
 	}
 
-	bool _lookup_pos_with_hash(const TKey &p_key, uint32_t &r_pos, uint32_t p_hash) const {
+	_FORCE_INLINE_ bool _lookup_pos_with_hash(const TKey &p_key, uint32_t &r_pos, uint32_t p_hash) const {
 		uint32_t pos = p_hash & capacity;
 
 		if (hashes[pos] == p_hash && Comparator::compare(elements[pos].key, p_key)) {
@@ -140,7 +138,7 @@ private:
 				return false;
 			}
 
-			if (distance > _get_probe_length(pos, hashes[pos])) {
+			if (distance > _get_probe_length(pos, hashes[pos], capacity)) {
 				return false;
 			}
 
@@ -149,7 +147,7 @@ private:
 		}
 	}
 
-	void _insert_with_hash(uint32_t p_hash, const TKey &p_key, const TValue &p_value) {
+	_FORCE_INLINE_ void _insert_with_hash(uint32_t p_hash, const TKey &p_key, const TValue &p_value) {
 		uint32_t hash = p_hash;
 		uint32_t distance = 0;
 		uint32_t pos = hash & capacity;
@@ -165,7 +163,7 @@ private:
 			}
 
 			// Not an empty slot, let's check the probing length of the existing one.
-			uint32_t existing_probe_len = _get_probe_length(pos, hashes[pos]);
+			uint32_t existing_probe_len = _get_probe_length(pos, hashes[pos], capacity);
 			if (existing_probe_len < distance) {
 				SWAP(hash, hashes[pos]);
 				SWAP(key, elements[pos].key);
@@ -179,49 +177,74 @@ private:
 	}
 
 	void _resize_and_rehash(uint32_t p_new_capacity) {
-		uint32_t old_capacity = capacity;
+		uint32_t old_real_capacity = capacity + 1;
 
 		// Capacity can't be 0 and must be 2^n - 1.
 		capacity = MAX(4u, p_new_capacity);
-		capacity = next_power_of_2(capacity - 1) - 1;
+		uint32_t real_capacity = next_power_of_2(capacity);
+		capacity = real_capacity - 1;
 
 		OAHashMapElement<TKey, TValue> *old_elements = elements;
 		uint32_t *old_hashes = hashes;
 
-		num_elements = 0;
-		hashes = static_cast<uint32_t *>(Memory::alloc_static(sizeof(uint32_t) * (capacity + 1)));
-		elements = static_cast<OAHashMapElement<TKey, TValue> *>(Memory::alloc_static((sizeof(OAHashMapElement<TKey, TValue>)) * (capacity + 1)));
+		hashes = static_cast<uint32_t *>(Memory::alloc_static(sizeof(uint32_t) * real_capacity));
+		elements = static_cast<OAHashMapElement<TKey, TValue> *>(Memory::alloc_static(sizeof(OAHashMapElement<TKey, TValue>) * real_capacity));
 
-		for (uint32_t i = 0; i < capacity + 1; i++) {
-			hashes[i] = EMPTY_HASH;
-		}
+		memset(hashes, EMPTY_HASH, sizeof(uint32_t) * real_capacity);
 
-		if (old_capacity == 0) {
+		if (old_elements == nullptr) {
 			// Nothing to do.
 			return;
 		}
 
-		for (uint32_t i = 0; i < old_capacity + 1; i++) {
-			if (old_hashes[i] == EMPTY_HASH) {
-				continue;
-			}
+		if (num_elements != 0) {
+			num_elements = 0;
 
-			_insert_with_hash(old_hashes[i], old_elements[i].key, old_elements[i].value);
+			for (uint32_t i = 0; i < old_real_capacity; i++) {
+				if (old_hashes[i] == EMPTY_HASH) {
+					continue;
+				}
 
-			if constexpr (!std::is_trivially_destructible_v<TKey>) {
-				old_elements[i].key.~TKey();
-			}
-			if constexpr (!std::is_trivially_destructible_v<TValue>) {
-				old_elements[i].value.~TValue();
+				_insert_with_hash(old_hashes[i], old_elements[i].key, old_elements[i].value);
+
+				if constexpr (!std::is_trivially_destructible_v<TKey>) {
+					old_elements[i].key.~TKey();
+				}
+				if constexpr (!std::is_trivially_destructible_v<TValue>) {
+					old_elements[i].value.~TValue();
+				}
 			}
 		}
-
 		Memory::free_static(old_elements);
 		Memory::free_static(old_hashes);
 	}
 
 	void _resize_and_rehash() {
 		_resize_and_rehash(capacity * 2);
+	}
+
+	void _clear_elements() {
+		uint32_t real_capacity = capacity + 1;
+		for (uint32_t i = 0; i < real_capacity; i++) {
+			if (hashes[i] == EMPTY_HASH) {
+				continue;
+			}
+			if constexpr (!std::is_trivially_destructible_v<TValue>) {
+				elements[i].value.~TValue();
+			}
+			if constexpr (!std::is_trivially_destructible_v<TKey>) {
+				elements[i].key.~TKey();
+			}
+		}
+	}
+
+	void _reset() {
+		if (num_elements != 0) {
+			_clear_elements();
+		}
+
+		Memory::free_static(hashes);
+		Memory::free_static(elements);
 	}
 
 public:
@@ -233,25 +256,13 @@ public:
 	}
 
 	void clear() {
-		for (uint32_t i = 0; i < capacity + 1; i++) {
-			if (hashes[i] == EMPTY_HASH) {
-				continue;
-			}
-
-			hashes[i] = EMPTY_HASH;
-			if constexpr (!std::is_trivially_destructible_v<TValue>) {
-				elements[i].value.~TValue();
-			}
-			if constexpr (!std::is_trivially_destructible_v<TKey>) {
-				elements[i].key.~TKey();
-			}
-		}
-
+		_clear_elements();
+		memset(hashes, EMPTY_HASH, (capacity + 1) * sizeof(uint32_t));
 		num_elements = 0;
 	}
 
 	void insert(const TKey &p_key, const TValue &p_value) {
-		if (num_elements + 1 > MAX_OCCUPANCY * capacity) {
+		if (unlikely(num_elements > _get_resize_count(capacity))) {
 			_resize_and_rehash();
 		}
 
@@ -268,7 +279,7 @@ public:
 		if (exists) {
 			elements[pos].value = p_data;
 		} else {
-			if (num_elements + 1 > MAX_OCCUPANCY * capacity) {
+			if (unlikely(num_elements > _get_resize_count(capacity))) {
 				_resize_and_rehash();
 			}
 			_insert_with_hash(hash, p_key, p_data);
@@ -281,7 +292,7 @@ public:
 	 * If r_data is not nullptr then the value will be written to the object
 	 * it points to.
 	 */
-	_FORCE_INLINE_ bool lookup(const TKey &p_key, TValue &r_data) const {
+	bool lookup(const TKey &p_key, TValue &r_data) const {
 		uint32_t pos = 0;
 		bool exists = _lookup_pos(p_key, pos);
 
@@ -293,7 +304,7 @@ public:
 		return false;
 	}
 
-	_FORCE_INLINE_ const TValue *lookup_ptr(const TKey &p_key) const {
+	const TValue *lookup_ptr(const TKey &p_key) const {
 		uint32_t pos = 0;
 		bool exists = _lookup_pos(p_key, pos);
 
@@ -303,7 +314,7 @@ public:
 		return nullptr;
 	}
 
-	_FORCE_INLINE_ TValue *lookup_ptr(const TKey &p_key) {
+	TValue *lookup_ptr(const TKey &p_key) {
 		uint32_t pos = 0;
 		bool exists = _lookup_pos(p_key, pos);
 
@@ -313,7 +324,7 @@ public:
 		return nullptr;
 	}
 
-	_FORCE_INLINE_ bool has(const TKey &p_key) const {
+	bool has(const TKey &p_key) const {
 		uint32_t _pos = 0;
 		return _lookup_pos(p_key, _pos);
 	}
@@ -328,7 +339,7 @@ public:
 
 		uint32_t next_pos = (pos + 1) & capacity;
 		while (hashes[next_pos] != EMPTY_HASH &&
-				_get_probe_length(next_pos, hashes[next_pos]) != 0) {
+				_get_probe_length(next_pos, hashes[next_pos], capacity) != 0) {
 			SWAP(hashes[next_pos], hashes[pos]);
 			SWAP(elements[next_pos].key, elements[pos].key);
 			SWAP(elements[next_pos].value, elements[pos].value);
@@ -353,7 +364,7 @@ public:
 	 *  capacity.
 	 **/
 	void reserve(uint32_t p_new_capacity) {
-		ERR_FAIL_COND(p_new_capacity < capacity + 1);
+		ERR_FAIL_COND_MSG(p_new_capacity < get_capacity(), "It is impossible to reserve less capacity than is currently available.");
 		_resize_and_rehash(p_new_capacity);
 	}
 
@@ -387,8 +398,8 @@ public:
 		it.pos = p_iter.pos;
 		it.key = nullptr;
 		it.value = nullptr;
-
-		for (uint32_t i = it.pos; i < capacity + 1; i++) {
+		uint32_t real_capacity = capacity + 1;
+		for (uint32_t i = it.pos; i < real_capacity; i++) {
 			it.pos = i + 1;
 
 			if (hashes[i] == EMPTY_HASH) {
@@ -409,16 +420,31 @@ public:
 	}
 
 	void operator=(const OAHashMap &p_other) {
-		if (capacity != 0) {
-			clear();
+		if (&p_other == this) {
+			return;
+		}
+		if (elements != nullptr) {
+			_reset();
 		}
 
-		if (p_other.capacity != capacity) {
-			_resize_and_rehash(p_other.capacity);
-		}
+		capacity = p_other.capacity;
+		num_elements = p_other.num_elements;
+		uint32_t real_capacity = capacity + 1;
+		hashes = static_cast<uint32_t *>(Memory::alloc_static(sizeof(uint32_t) * real_capacity));
+		elements = static_cast<OAHashMapElement<TKey, TValue> *>(Memory::alloc_static(sizeof(OAHashMapElement<TKey, TValue>) * real_capacity));
 
-		for (Iterator it = p_other.iter(); it.valid; it = p_other.next_iter(it)) {
-			set(*it.key, *it.value);
+		memcpy(hashes, p_other.hashes, sizeof(uint32_t) * real_capacity);
+
+		if constexpr (std::is_trivially_copyable_v<TKey> && std::is_trivially_copyable_v<TValue>) {
+			memcpy(elements, p_other.elements, sizeof(OAHashMapElement<TKey, TValue>) * num_elements);
+		} else {
+			for (uint32_t i = 0; i < real_capacity; i++) {
+				if (hashes[i] == EMPTY_HASH) {
+					continue;
+				}
+				memnew_placement(&elements[i].key, TKey(p_other.elements[i].key));
+				memnew_placement(&elements[i].value, TValue(p_other.elements[i].value));
+			}
 		}
 	}
 
@@ -427,12 +453,7 @@ public:
 	}
 
 	~OAHashMap() {
-		if (num_elements != 0) {
-			clear();
-		}
-
-		Memory::free_static(hashes);
-		Memory::free_static(elements);
+		_reset();
 	}
 };
 
