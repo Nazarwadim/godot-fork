@@ -8,6 +8,7 @@
 #include "new_hash_set.h"
 #include "old_hash_map.h"
 #include "old_oa_hash_map.h"
+#include "most_optimized_hash_map.h"
 #include <chrono>
 #include <map>
 
@@ -36,8 +37,8 @@ struct Hasher {
 
 using namespace std;
 
-HashMap4<int, long> before_arr0[10];
-HashMap<int, long> after_arr0[10];
+HashMap4<int, long> before_arr0[10]; // Fastmod.
+HashMap<int, long> after_arr0[10]; // The same, but without fastmod.
 
 HashSet1<int> after_set_arr[10];
 HashSet<int> before_set_arr[10];
@@ -52,7 +53,7 @@ int found1;
 int found2;
 bool has1;
 bool has2;
-uint32_t count = 5;
+uint32_t count = 5; // Exponent.
 
 void insert_random_variables_in_vec() {
 	for (uint32_t i = 1000000000; i < 1000000000 + 200000000; i+=10) {
@@ -60,61 +61,7 @@ void insert_random_variables_in_vec() {
 	}
 }
 
-void insert_random_variables_in_vec2() {
-	for (uint32_t i = 0; i < 2 * count; i++) {
-		rand_vec2.push_back(rand());
-	}
-}
-
-int a = 1;
-int a2 = 1;
-
-LocalVector<int> randoma;
-
-__attribute__((noinline)) void test_1() {
-	int num = a;
-	int count_local = 2 * count;
-	for (int i = 0; i < count_local; i++) {
-		rand_vec.write[i] += num;
-	}
-}
-
-__attribute__((noinline)) void test_2() {
-	int num = a;
-	for (const int value : rand_vec) {
-		num += value;
-	}
-	a = num;
-}
-
-__attribute__((noinline)) void test_3() {
-	int num = a;
-	int count_local = 2 * count;
-	for (int i = 0; i < count_local; i++) {
-		num += rand_vec2[i];
-	}
-	a = num;
-}
-
-__attribute__((noinline)) void test_hash_map12() {
-	insert_random_variables_in_vec2();
-	uint64_t start1 = OS::get_singleton()->get_ticks_usec();
-	test_2();
-	uint64_t end1 = OS::get_singleton()->get_ticks_usec();
-	print_line("Time set before:", end1 - start1);
-
-	uint64_t start2 = OS::get_singleton()->get_ticks_usec();
-	test_1();
-	uint64_t end2 = OS::get_singleton()->get_ticks_usec();
-	print_line("Time set after:", end2 - start2);
-
-	uint64_t start3 = OS::get_singleton()->get_ticks_usec();
-	test_3();
-	uint64_t end3 = OS::get_singleton()->get_ticks_usec();
-	print_line("Time set after:", end3 - start3);
-}
-
-__attribute__((noinline)) void test_hash_map_or_before() {
+void test_hash_map_or_before() {
 	uint64_t general_time = OS::get_singleton()->get_ticks_msec();
 	for (int ik = 0; ik < 10; ik++) {
 		uint32_t c = pow(count, ik + 1);
@@ -144,7 +91,7 @@ __attribute__((noinline)) void test_hash_map_or_before() {
 	print_line("General_time msec:", general_time);
 }
 
-__attribute__((noinline)) void test_hash_map_or_after() {
+void test_hash_map_or_after() {
 	uint64_t general_time = OS::get_singleton()->get_ticks_msec();
 	for (int ik = 0; ik < 10; ik++) {
 		uint32_t c = pow(count, ik + 1);
@@ -174,19 +121,13 @@ __attribute__((noinline)) void test_hash_map_or_after() {
 	print_line("General_time msec:", general_time);
 }
 
-__attribute__((noinline)) void test_hash_map_or() {
-	// for (int i = 0; i < 10; i++) {
-	// 	before_arr0[i].reserve(5 * pow(count, i + 1));
-	// 	after_arr0[i].reserve(5 * pow(count, i + 1));
-	// }
-
+void test_hash_map_or() {
 	test_hash_map_or_before();
-
 	print_line(" ");
 	test_hash_map_or_after();
 }
 
-__attribute__((noinline)) void test_hash_map_set() {
+void test_hash_map_set() {
 	for (int i = 0; i < 10; i++) {
 		before_set_arr[i].reserve(5 * pow(count, i + 1));
 		after_set_arr[i].reserve(5 * pow(count, i + 1));
@@ -215,7 +156,7 @@ __attribute__((noinline)) void test_hash_map_set() {
 	for (int ik = 0; ik < 10; ik++) {
 		uint32_t c = pow(count, ik + 1);
 		auto clock_start = chrono::system_clock::now();
-		for (uint32_t i = 0; i < 2 * 100000; i++) {
+		for (uint32_t i = 0; i < 2 * c; i++) {
 			auto it = before_set_arr[ik].find(rand_vec[i]);
 			if (it != before_set_arr[ik].end()) {
 				found1 = rand_vec[i];
@@ -228,7 +169,7 @@ __attribute__((noinline)) void test_hash_map_set() {
 	for (int ik = 0; ik < 10; ik++) {
 		uint32_t c = pow(count, ik + 1);
 		auto clock_start = chrono::system_clock::now();
-		for (uint32_t i = 0; i < 2 * 100000; i++) {
+		for (uint32_t i = 0; i < 2 * c; i++) {
 			auto it = after_set_arr[ik].find(rand_vec[i]);
 			if (it != after_set_arr[ik].end()) {
 				found1 = rand_vec[i];
@@ -240,7 +181,7 @@ __attribute__((noinline)) void test_hash_map_set() {
 	}
 }
 
-__attribute__((noinline)) void test_oa_before() {
+void test_oa_before() {
 	for (int ik = 0; ik < 10; ik++) {
 		uint32_t c = pow(count, ik + 1);
 		auto clock_start_insert = chrono::system_clock::now();
@@ -254,7 +195,7 @@ __attribute__((noinline)) void test_oa_before() {
 	for (int ik = 0; ik < 10; ik++) {
 		uint32_t c = pow(count, ik + 1);
 		auto clock_start = chrono::system_clock::now();
-		for (uint32_t i = 0; i < 2 * 100000; i++) {
+		for (uint32_t i = 0; i < 2 * c; i++) {
 			int data = 0;
 			if (before_oa_arr[ik].lookup(rand_vec[i], data)) {
 				found1 = data;
@@ -266,7 +207,7 @@ __attribute__((noinline)) void test_oa_before() {
 	}
 }
 
-__attribute__((noinline)) void test_oa_after() {
+void test_oa_after() {
 	for (int ik = 0; ik < 10; ik++) {
 		uint32_t c = pow(count, ik + 1);
 		auto clock_start_insert = chrono::system_clock::now();
@@ -280,7 +221,7 @@ __attribute__((noinline)) void test_oa_after() {
 	for (int ik = 0; ik < 10; ik++) {
 		uint32_t c = pow(count, ik + 1);
 		auto clock_start = chrono::system_clock::now();
-		for (uint32_t i = 0; i < 2 * 100000; i++) {
+		for (uint32_t i = 0; i < 2 * c; i++) {
 			int data = 0;
 			if (after_oa_arr[ik].lookup(rand_vec[i], data)) {
 				found1 = data;
@@ -292,7 +233,7 @@ __attribute__((noinline)) void test_oa_after() {
 	}
 }
 
-void test_hash_third() {
+void test_third() {
 	for (int ik = 0; ik < 10; ik++) {
 		uint32_t c = pow(count, ik + 1);
 		auto clock_start_insert = chrono::system_clock::now();
@@ -321,18 +262,8 @@ void test_hash_third() {
 		print_line("Time find stl:", currentTime);
 	}
 }
-int sum = 0;
+
 void main_benchmark() {
 	insert_random_variables_in_vec();
-	real_t *_ptr = nullptr;
-	test_oa_before();
-	test_oa_after();
-
-	// print_line(" ");
-	// test_oa_before();
-	// print_line(" ");
-	// test_oa_after();
-	// print_line(" ");
-	// print_line(" ");
-	// test_hash_third();
+	test_hash_map_or();
 }
