@@ -2844,6 +2844,7 @@ uint32_t String::hash(const char *p_cstr) {
 		c = static_cast<uint8_t>(*p_cstr++);
 	}
 
+	hashv = hash_fmix32(hashv);
 	return hashv;
 }
 
@@ -2854,6 +2855,7 @@ uint32_t String::hash(const char *p_cstr, int p_len) {
 		hashv = ((hashv << 5) + hashv) + static_cast<uint8_t>(p_cstr[i]); /* hash * 33 + c */
 	}
 
+	hashv = hash_fmix32(hashv);
 	return hashv;
 }
 
@@ -2866,6 +2868,7 @@ uint32_t String::hash(const wchar_t *p_cstr, int p_len) {
 		hashv = ((hashv << 5) + hashv) + static_cast<wide_unsigned>(p_cstr[i]); /* hash * 33 + c */
 	}
 
+	hashv = hash_fmix32(hashv);
 	return hashv;
 }
 
@@ -2881,6 +2884,7 @@ uint32_t String::hash(const wchar_t *p_cstr) {
 		c = static_cast<wide_unsigned>(*p_cstr++);
 	}
 
+	hashv = hash_fmix32(hashv);
 	return hashv;
 }
 
@@ -2890,6 +2894,7 @@ uint32_t String::hash(const char32_t *p_cstr, int p_len) {
 		hashv = ((hashv << 5) + hashv) + p_cstr[i]; /* hash * 33 + c */
 	}
 
+	hashv = hash_fmix32(hashv);
 	return hashv;
 }
 
@@ -2902,6 +2907,7 @@ uint32_t String::hash(const char32_t *p_cstr) {
 		c = *p_cstr++;
 	}
 
+	hashv = hash_fmix32(hashv);
 	return hashv;
 }
 
@@ -2917,6 +2923,7 @@ uint32_t String::hash() const {
 		c = *chr++;
 	}
 
+	hashv = hash_fmix32(hashv);
 	return hashv;
 }
 
