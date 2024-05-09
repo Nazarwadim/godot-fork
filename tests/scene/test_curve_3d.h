@@ -172,9 +172,9 @@ TEST_CASE("[Curve3D] Sampling") {
 	}
 
 	SUBCASE("sample_baked, cubic = true") {
-		CHECK(curve->sample_baked(curve->get_closest_offset(Vector3(0, 0, 0)), true).is_equal_approx(Vector3(0, 0, 0)));
-		CHECK(curve->sample_baked(curve->get_closest_offset(Vector3(0, 25, 0)), true).is_equal_approx(Vector3(0, 25, 0)));
-		CHECK(curve->sample_baked(curve->get_closest_offset(Vector3(0, 50, 0)), true).is_equal_approx(Vector3(0, 50, 0)));
+		CHECK(curve->sample_baked(curve->get_closest_offset(Vector3(0, 0, 0)), true) == Vector3(0, 0, 0));
+		CHECK(curve->sample_baked(curve->get_closest_offset(Vector3(0, 25, 0)), true) == Vector3(0, 25, 0));
+		CHECK(curve->sample_baked(curve->get_closest_offset(Vector3(0, 50, 0)), true) == Vector3(0, 50, 0));
 	}
 
 	SUBCASE("sample_baked_with_rotation") {
