@@ -382,7 +382,7 @@ public:
 		float t2 = p_t * p_t;
 		float t3 = t2 * p_t;
 
-		return omt * (p_start * omt2 + 3.0f * p_control_1 * omt * p_t + 3.0f *  p_control_2 * t2) + p_end * t3;
+		return omt * (p_start * omt2 + 3.0f * p_control_1 * omt * p_t + 3.0f * p_control_2 * t2) + p_end * t3;
 	}
 
 	static _ALWAYS_INLINE_ double bezier_derivative(double p_start, double p_control_1, double p_control_2, double p_end, double p_t) {
