@@ -387,19 +387,6 @@ public:
 		return omt * (p_start * omt2 + 3.0 * p_control_2 * t2) + 3.0 * p_control_1 * omt2 * p_t + p_end * t3;
 	}
 
-#ifdef _M_ARM64
-	static _ALWAYS_INLINE_ float bezier_interpolate(float p_start, float p_control_1, float p_control_2, float p_end, float p_t) {
-		/* Formula from Wikipedia article on Bezier curves. */
-		float omt = (1.0f - p_t);
-		float omt2 = omt * omt;
-		float omt3 = omt2 * omt;
-		float t2 = p_t * p_t;
-		float t3 = t2 * p_t;
-
-		return p_start * omt3 + p_control_1 * omt2 * p_t * 3.0f + p_control_2 * omt * t2 * 3.0f + p_end * t3;
-	}
-
-#else
 	static _ALWAYS_INLINE_ float bezier_interpolate(float p_start, float p_control_1, float p_control_2, float p_end, float p_t) {
 		/* Formula from Wikipedia article on Bezier curves. */
 		float omt = (1.0f - p_t);
@@ -409,7 +396,6 @@ public:
 
 		return omt * (p_start * omt2 + 3.0f * p_control_2 * t2) + 3.0f * p_control_1 * omt2 * p_t + p_end * t3;
 	}
-#endif
 
 	static _ALWAYS_INLINE_ double bezier_derivative(double p_start, double p_control_1, double p_control_2, double p_end, double p_t) {
 		/* Formula from Wikipedia article on Bezier curves. */
@@ -423,10 +409,11 @@ public:
 	static _ALWAYS_INLINE_ float bezier_derivative(float p_start, float p_control_1, float p_control_2, float p_end, float p_t) {
 		/* Formula from Wikipedia article on Bezier curves. */
 		float omt = (1.0f - p_t);
+		float omt2 = omt * omt;
 		float t2 = p_t * p_t;
 
-		float d = omt * ((p_control_1 - p_start) * omt + (p_control_2 - p_control_1) * 2.0f * p_t) + (p_end - p_control_2) * t2;
-		return 3.0f * d;
+		float d = (p_control_1 - p_start) * 3.0f * omt2 + (p_control_2 - p_control_1) * 6.0f * omt * p_t + (p_end - p_control_2) * 3.0f * t2;
+		return d;
 	}
 
 	static _ALWAYS_INLINE_ double angle_difference(double p_from, double p_to) {
