@@ -263,22 +263,14 @@ public:
 		return value;
 	}
 
-	static _ALWAYS_INLINE_ double truncate(double x) {
-		return x < 0 ? -Math::floor(-x) : Math::floor(x);
-	}
-
-	static _ALWAYS_INLINE_ float truncate(float x) {
-		return x < 0 ? -Math::floor(-x) : Math::floor(x);
-	}
-
 	static _ALWAYS_INLINE_ double fmod_TAU(double x) {
 		static constexpr double tau_reversed = 1.0 / Math_TAU;
-		return x - truncate(x * tau_reversed) * Math_TAU;
+		return x - trunc(x * tau_reversed) * Math_TAU;
 	}
 
 	static _ALWAYS_INLINE_ float fmod_TAU(float x) {
 		static constexpr float tau_reversed = 1.0f / (float)Math_TAU;
-		return x - truncate(x * tau_reversed) * (float)Math_TAU;
+		return x - truncf(x * tau_reversed) * (float)Math_TAU;
 	}
 
 	static _ALWAYS_INLINE_ double deg_to_rad(double p_y) { return p_y * (Math_PI / 180.0); }
