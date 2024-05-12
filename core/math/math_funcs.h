@@ -273,10 +273,12 @@ public:
 	static _ALWAYS_INLINE_ float lerp(float p_from, float p_to, float p_weight) { return p_from + (p_to - p_from) * p_weight; }
 
 	static _ALWAYS_INLINE_ double cubic_interpolate(double p_from, double p_to, double p_pre, double p_post, double p_weight) {
-		return p_from + 0.5 * p_weight * (-p_pre + p_to + p_weight * (2.0 * p_pre - 5.0 * p_from + 4.0 * p_to - p_post + (-p_pre + 3.0 * (p_from - p_to) + p_post) * p_weight));
+		double pre_min_post = p_pre - p_post;
+		return p_from - 0.5 * p_weight * (p_pre - p_to - p_weight * (pre_min_post + p_pre - 5.0 * p_from + 4.0 * p_to - (pre_min_post - 3.0 * (p_from - p_to)) * p_weight));
 	}
 	static _ALWAYS_INLINE_ float cubic_interpolate(float p_from, float p_to, float p_pre, float p_post, float p_weight) {
-		return p_from + 0.5f * p_weight * (-p_pre + p_to + p_weight * (2.0f * p_pre - 5.0f * p_from + 4.0f * p_to - p_post + (-p_pre + 3.0f * (p_from - p_to) + p_post) * p_weight));
+		float pre_min_post = p_pre - p_post;
+		return p_from - 0.5f * p_weight * (p_pre - p_to - p_weight * (pre_min_post + p_pre - 5.0f * p_from + 4.0f * p_to - (pre_min_post - 3.0f * (p_from - p_to)) * p_weight));
 	}
 
 	static _ALWAYS_INLINE_ double cubic_interpolate_angle(double p_from, double p_to, double p_pre, double p_post, double p_weight) {
@@ -372,7 +374,7 @@ public:
 		double t2 = p_t * p_t;
 		double t3 = t2 * p_t;
 
-		return omt * (p_start * omt2 + 3.0 * (p_control_1 * omt * p_t + p_control_2 * t2)) + p_end * t3;
+		return omt * (p_start * omt2 + 3.0 * p_control_2 * t2) + 3.0 * p_control_1 * omt2 * p_t + p_end * t3;
 	}
 
 	static _ALWAYS_INLINE_ float bezier_interpolate(float p_start, float p_control_1, float p_control_2, float p_end, float p_t) {
@@ -382,7 +384,7 @@ public:
 		float t2 = p_t * p_t;
 		float t3 = t2 * p_t;
 
-		return omt * (p_start * omt2 + 3.0f * p_control_1 * omt * p_t + 3.0f * p_control_2 * t2) + p_end * t3;
+		return omt * (p_start * omt2 + 3.0f * p_control_2 * t2) + 3.0f * p_control_1 * omt2 * p_t + p_end * t3;
 	}
 
 	static _ALWAYS_INLINE_ double bezier_derivative(double p_start, double p_control_1, double p_control_2, double p_end, double p_t) {
