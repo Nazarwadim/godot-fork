@@ -153,7 +153,7 @@ private:
 			hashes[i] = EMPTY_HASH;
 		}
 
-		for (uint32_t i = 0; i < num_elements; i++) {
+		for (uint32_t i = 0; i < capacity; i++) {
 			if (old_hashes[i] != EMPTY_HASH) {
 				_insert_with_hash(old_hashes[i], old_hash_to_key[i]);
 			}
