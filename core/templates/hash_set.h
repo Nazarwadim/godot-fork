@@ -139,6 +139,7 @@ private:
 
 	void _resize_and_rehash(uint32_t p_new_capacity_index) {
 		// Capacity can't be 0.
+		uint32_t old_capacity = hash_table_size_primes[capacity_index];
 		capacity_index = MAX((uint32_t)MIN_CAPACITY_INDEX, p_new_capacity_index);
 
 		uint32_t capacity = hash_table_size_primes[capacity_index];
@@ -152,10 +153,11 @@ private:
 		for (uint32_t i = 0; i < capacity; i++) {
 			hashes[i] = EMPTY_HASH;
 		}
-
-		for (uint32_t i = 0; i < capacity; i++) {
-			if (old_hashes[i] != EMPTY_HASH) {
-				_insert_with_hash(old_hashes[i], old_hash_to_key[i]);
+		if (num_elements != 0) {
+			for (uint32_t i = 0; i < old_capacity; i++) {
+				if (old_hashes[i] != EMPTY_HASH) {
+					_insert_with_hash(old_hashes[i], old_hash_to_key[i]);
+				}
 			}
 		}
 
