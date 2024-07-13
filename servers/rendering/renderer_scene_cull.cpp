@@ -3183,6 +3183,12 @@ void RendererSceneCull::_render_scene(const RendererSceneRender::CameraData *p_c
 			_scene_cull(cull_data, scene_cull_result, cull_from, cull_to);
 		}
 
+		// Sort culled_geometries by increasing distance to the camera.
+		bool is_sort = GLOBAL_GET("rendering/camera/sort_geometry_instances_by_distance");
+		if (is_sort) {
+			_sort_culled_geometries_result(scene_cull_result.geometry_instances, camera_position);
+		}
+
 #ifdef DEBUG_CULL_TIME
 		static float time_avg = 0;
 		static uint32_t time_count = 0;
@@ -3422,6 +3428,26 @@ void RendererSceneCull::_render_scene(const RendererSceneRender::CameraData *p_c
 
 	for (uint32_t i = 0; i < cull.sdfgi.region_count; i++) {
 		render_sdfgi_data[i].instances.clear();
+	}
+}
+
+void RendererSceneCull::_sort_culled_geometries_result(PagedArray<RenderGeometryInstance *> &p_culled_geometry_instances, const Vector3 &p_camera_position) {
+	static LocalVector<Pair<float, RenderGeometryInstance *>> culled_geometries;
+	culled_geometries.resize(p_culled_geometry_instances.size());
+
+	struct CGComparator {
+		_FORCE_INLINE_ bool operator()(const Pair<float, RenderGeometryInstance *> &a, const Pair<float, RenderGeometryInstance *> &b) const { return (a.first < b.first); }
+	};
+
+	for (uint32_t i = 0; i < culled_geometries.size(); i++) {
+		RenderGeometryInstance *g_i = p_culled_geometry_instances[i];
+		float distance_squared_to_geometry = p_camera_position.distance_squared_to(g_i->get_transform().origin);
+		culled_geometries[i] = Pair<float, RenderGeometryInstance *>(distance_squared_to_geometry, g_i);
+	}
+	culled_geometries.sort_custom<CGComparator>();
+
+	for (uint32_t i = 0; i < culled_geometries.size(); i++) {
+		p_culled_geometry_instances[i] = culled_geometries[i].second;
 	}
 }
 
