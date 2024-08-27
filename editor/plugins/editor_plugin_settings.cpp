@@ -199,9 +199,6 @@ Vector<String> EditorPluginSettings::_get_plugins(const String &p_dir) {
 	return plugins;
 }
 
-void EditorPluginSettings::_bind_methods() {
-}
-
 EditorPluginSettings::EditorPluginSettings() {
 	ProjectSettings::get_singleton()->add_hidden_prefix("editor_plugins/");
 
@@ -215,7 +212,7 @@ EditorPluginSettings::EditorPluginSettings() {
 	title_hb->add_child(label);
 	title_hb->add_spacer();
 	Button *create_plugin_button = memnew(Button(TTR("Create New Plugin")));
-	create_plugin_button->connect("pressed", callable_mp(this, &EditorPluginSettings::_create_clicked));
+	create_plugin_button->connect(SceneStringName(pressed), callable_mp(this, &EditorPluginSettings::_create_clicked));
 	title_hb->add_child(create_plugin_button);
 	add_child(title_hb);
 

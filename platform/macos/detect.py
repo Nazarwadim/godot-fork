@@ -1,9 +1,9 @@
 import os
 import sys
-from methods import print_error, detect_darwin_sdk_path, get_compiler_version, is_vanilla_clang
-from platform_methods import detect_arch, detect_mvk
-
 from typing import TYPE_CHECKING
+
+from methods import detect_darwin_sdk_path, get_compiler_version, is_vanilla_clang, print_error
+from platform_methods import detect_arch, detect_mvk
 
 if TYPE_CHECKING:
     from SCons.Script.SConscript import SConsEnvironment
@@ -53,11 +53,12 @@ def get_doc_path():
 
 
 def get_flags():
-    return [
-        ("arch", detect_arch()),
-        ("use_volk", False),
-        ("supported", ["mono"]),
-    ]
+    return {
+        "arch": detect_arch(),
+        "use_volk": False,
+        "metal": True,
+        "supported": ["metal", "mono"],
+    }
 
 
 def configure(env: "SConsEnvironment"):
@@ -96,6 +97,8 @@ def configure(env: "SConsEnvironment"):
         env.Append(CCFLAGS=["-arch", "x86_64", "-mmacosx-version-min=10.13"])
         env.Append(LINKFLAGS=["-arch", "x86_64", "-mmacosx-version-min=10.13"])
 
+    env.Append(CCFLAGS=["-ffp-contract=off"])
+
     cc_version = get_compiler_version(env)
     cc_version_major = cc_version["apple_major"]
     cc_version_minor = cc_version["apple_minor"]
@@ -107,7 +110,7 @@ def configure(env: "SConsEnvironment"):
 
     env.Append(CCFLAGS=["-fobjc-arc"])
 
-    if not "osxcross" in env:  # regular native build
+    if "osxcross" not in env:  # regular native build
         if env["macports_clang"] != "no":
             mpprefix = os.environ.get("MACPORTS_PREFIX", "/opt/local")
             mpclangver = env["macports_clang"]
@@ -237,9 +240,22 @@ def configure(env: "SConsEnvironment"):
 
     env.Append(LINKFLAGS=["-rpath", "@executable_path/../Frameworks", "-rpath", "@executable_path"])
 
+    if env["metal"] and env["arch"] != "arm64":
+        # Only supported on arm64, so skip it for x86_64 builds.
+        env["metal"] = False
+
+    extra_frameworks = set()
+
+    if env["metal"]:
+        env.AppendUnique(CPPDEFINES=["METAL_ENABLED", "RD_ENABLED"])
+        extra_frameworks.add("Metal")
+        extra_frameworks.add("MetalKit")
+        env.Prepend(CPPPATH=["#thirdparty/spirv-cross"])
+
     if env["vulkan"]:
-        env.Append(CPPDEFINES=["VULKAN_ENABLED", "RD_ENABLED"])
-        env.Append(LINKFLAGS=["-framework", "Metal", "-framework", "IOSurface"])
+        env.AppendUnique(CPPDEFINES=["VULKAN_ENABLED", "RD_ENABLED"])
+        extra_frameworks.add("Metal")
+        extra_frameworks.add("IOSurface")
         if not env["use_volk"]:
             env.Append(LINKFLAGS=["-lMoltenVK"])
 
@@ -258,3 +274,7 @@ def configure(env: "SConsEnvironment"):
                     "MoltenVK SDK installation directory not found, use 'vulkan_sdk_path' SCons parameter to specify SDK path."
                 )
                 sys.exit(255)
+
+    if len(extra_frameworks) > 0:
+        frameworks = [item for key in extra_frameworks for item in ["-framework", key]]
+        env.Append(LINKFLAGS=frameworks)

@@ -169,6 +169,7 @@ private:
 	GDScriptFunction *static_initializer = nullptr;
 
 	Error _static_init();
+	void _static_default_init(); // Initialize static variables with default values based on their types.
 
 	int subclass_count = 0;
 	RBSet<Object *> instances;
@@ -365,6 +366,8 @@ class GDScriptInstance : public ScriptInstance {
 
 	SelfList<GDScriptFunctionState>::List pending_func_states;
 
+	void _call_implicit_ready_recursively(GDScript *p_script);
+
 public:
 	virtual Object *get_owner() { return owner; }
 
@@ -407,6 +410,8 @@ class GDScriptLanguage : public ScriptLanguage {
 	friend class GDScriptFunctionState;
 
 	static GDScriptLanguage *singleton;
+
+	bool finishing = false;
 
 	Variant *_global_array = nullptr;
 	Vector<Variant> global_array;
@@ -454,9 +459,11 @@ class GDScriptLanguage : public ScriptLanguage {
 	friend class GDScriptFunction;
 
 	SelfList<GDScriptFunction>::List function_list;
+#ifdef DEBUG_ENABLED
 	bool profiling;
 	bool profile_native_calls;
 	uint64_t script_frame_time;
+#endif
 
 	HashMap<String, ObjectID> orphan_subclasses;
 
@@ -633,7 +640,7 @@ public:
 	virtual void get_recognized_extensions(List<String> *p_extensions) const override;
 	virtual bool handles_type(const String &p_type) const override;
 	virtual String get_resource_type(const String &p_path) const override;
-	virtual void get_dependencies(const String &p_path, List<String> *r_dependencies, bool p_add_types = false) override;
+	virtual void get_dependencies(const String &p_path, List<String> *p_dependencies, bool p_add_types = false) override;
 };
 
 class ResourceFormatSaverGDScript : public ResourceFormatSaver {

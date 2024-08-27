@@ -129,9 +129,6 @@ void Occluder3D::_notification(int p_what) {
 	}
 }
 
-void Occluder3D::_bind_methods() {
-}
-
 Occluder3D::Occluder3D() {
 	occluder = RS::get_singleton()->occluder_create();
 }
@@ -192,7 +189,7 @@ void QuadOccluder3D::set_size(const Size2 &p_size) {
 		return;
 	}
 
-	size = p_size.max(Size2());
+	size = p_size.maxf(0);
 	_update();
 }
 
@@ -236,7 +233,7 @@ void BoxOccluder3D::set_size(const Vector3 &p_size) {
 		return;
 	}
 
-	size = p_size.max(Vector3());
+	size = p_size.maxf(0);
 	_update();
 }
 

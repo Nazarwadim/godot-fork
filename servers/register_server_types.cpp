@@ -176,6 +176,8 @@ void register_server_types() {
 	GDREGISTER_VIRTUAL_CLASS(AudioStreamPlaybackResampled);
 	GDREGISTER_CLASS(AudioStreamMicrophone);
 	GDREGISTER_CLASS(AudioStreamRandomizer);
+	GDREGISTER_CLASS(AudioSample);
+	GDREGISTER_CLASS(AudioSamplePlayback);
 	GDREGISTER_VIRTUAL_CLASS(AudioEffect);
 	GDREGISTER_VIRTUAL_CLASS(AudioEffectInstance);
 	GDREGISTER_CLASS(AudioEffectEQ);
@@ -325,6 +327,7 @@ void register_server_types() {
 	PhysicsServer3DManager::get_singleton()->set_default_server("GodotPhysics3D");
 
 	GDREGISTER_ABSTRACT_CLASS(XRInterface);
+	GDREGISTER_CLASS(XRVRS);
 	GDREGISTER_CLASS(XRBodyTracker);
 	GDREGISTER_CLASS(XRControllerTracker);
 	GDREGISTER_CLASS(XRFaceTracker);

@@ -58,7 +58,6 @@ class ExportTemplateManager : public AcceptDialog {
 
 	HBoxContainer *current_installed_hb = nullptr;
 	LineEdit *current_installed_path = nullptr;
-	Button *current_open_button = nullptr;
 	Button *current_uninstall_button = nullptr;
 
 	VBoxContainer *install_options_vb = nullptr;
@@ -119,7 +118,6 @@ class ExportTemplateManager : public AcceptDialog {
 
 protected:
 	void _notification(int p_what);
-	static void _bind_methods();
 
 public:
 	static String get_android_build_directory(const Ref<EditorExportPreset> &p_preset);

@@ -33,6 +33,7 @@
 #include "editor/editor_node.h"
 #include "editor/editor_string_names.h"
 #include "editor/editor_undo_redo_manager.h"
+#include "editor/multi_node_edit.h"
 #include "editor/plugins/node_3d_editor_plugin.h"
 #include "editor/themes/editor_scale.h"
 #include "scene/3d/navigation_region_3d.h"
@@ -46,7 +47,6 @@
 #include "scene/resources/3d/concave_polygon_shape_3d.h"
 #include "scene/resources/3d/convex_polygon_shape_3d.h"
 #include "scene/resources/3d/primitive_meshes.h"
-#include "scene/scene_string_names.h"
 
 void MeshInstance3DEditor::_node_removed(Node *p_node) {
 	if (p_node == node) {
@@ -171,14 +171,14 @@ void MeshInstance3DEditor::_create_collision_shape() {
 
 			ur->add_do_method(instance, "add_child", body, true);
 			ur->add_do_method(body, "set_owner", owner);
-			ur->add_do_method(Node3DEditor::get_singleton(), SceneStringNames::get_singleton()->_request_gizmo, body);
+			ur->add_do_method(Node3DEditor::get_singleton(), SceneStringName(_request_gizmo), body);
 
 			for (Ref<Shape3D> shape : shapes) {
 				CollisionShape3D *cshape = memnew(CollisionShape3D);
 				cshape->set_shape(shape);
 				body->add_child(cshape, true);
 				ur->add_do_method(cshape, "set_owner", owner);
-				ur->add_do_method(Node3DEditor::get_singleton(), SceneStringNames::get_singleton()->_request_gizmo, cshape);
+				ur->add_do_method(Node3DEditor::get_singleton(), SceneStringName(_request_gizmo), cshape);
 			}
 			ur->add_do_reference(body);
 			ur->add_undo_method(instance, "remove_child", body);
@@ -188,10 +188,9 @@ void MeshInstance3DEditor::_create_collision_shape() {
 				cshape->set_shape(shape);
 				cshape->set_name("CollisionShape3D");
 				cshape->set_transform(node->get_transform());
-				ur->add_do_method(E->get_parent(), "add_child", cshape);
-				ur->add_do_method(E->get_parent(), "move_child", cshape, E->get_index() + 1);
+				ur->add_do_method(E, "add_sibling", cshape, true);
 				ur->add_do_method(cshape, "set_owner", owner);
-				ur->add_do_method(Node3DEditor::get_singleton(), SceneStringNames::get_singleton()->_request_gizmo, cshape);
+				ur->add_do_method(Node3DEditor::get_singleton(), SceneStringName(_request_gizmo), cshape);
 				ur->add_do_reference(cshape);
 				ur->add_undo_method(node->get_parent(), "remove_child", cshape);
 			}
@@ -215,28 +214,7 @@ void MeshInstance3DEditor::_menu_option(int p_option) {
 		} break;
 
 		case MENU_OPTION_CREATE_NAVMESH: {
-			Ref<NavigationMesh> nmesh = memnew(NavigationMesh);
-
-			if (nmesh.is_null()) {
-				return;
-			}
-
-			nmesh->create_from_mesh(mesh);
-			NavigationRegion3D *nmi = memnew(NavigationRegion3D);
-			nmi->set_navigation_mesh(nmesh);
-
-			Node *owner = get_tree()->get_edited_scene_root();
-
-			EditorUndoRedoManager *ur = EditorUndoRedoManager::get_singleton();
-			ur->create_action(TTR("Create Navigation Mesh"));
-
-			ur->add_do_method(node, "add_child", nmi, true);
-			ur->add_do_method(nmi, "set_owner", owner);
-			ur->add_do_method(Node3DEditor::get_singleton(), SceneStringNames::get_singleton()->_request_gizmo, nmi);
-
-			ur->add_do_reference(nmi);
-			ur->add_undo_method(node, "remove_child", nmi);
-			ur->commit_action();
+			navigation_mesh_dialog->popup_centered(Vector2(200, 90));
 		} break;
 
 		case MENU_OPTION_CREATE_OUTLINE_MESH: {
@@ -473,6 +451,36 @@ void MeshInstance3DEditor::_debug_uv_draw() {
 	debug_uv->draw_multiline(uv_lines, get_theme_color(SNAME("mono_color"), EditorStringName(Editor)) * Color(1, 1, 1, 0.5));
 }
 
+void MeshInstance3DEditor::_create_navigation_mesh() {
+	Ref<Mesh> mesh = node->get_mesh();
+	if (mesh.is_null()) {
+		return;
+	}
+
+	Ref<NavigationMesh> nmesh = memnew(NavigationMesh);
+
+	if (nmesh.is_null()) {
+		return;
+	}
+
+	nmesh->create_from_mesh(mesh);
+	NavigationRegion3D *nmi = memnew(NavigationRegion3D);
+	nmi->set_navigation_mesh(nmesh);
+
+	Node *owner = get_tree()->get_edited_scene_root();
+
+	EditorUndoRedoManager *ur = EditorUndoRedoManager::get_singleton();
+	ur->create_action(TTR("Create Navigation Mesh"));
+
+	ur->add_do_method(node, "add_child", nmi, true);
+	ur->add_do_method(nmi, "set_owner", owner);
+	ur->add_do_method(Node3DEditor::get_singleton(), SceneStringName(_request_gizmo), nmi);
+
+	ur->add_do_reference(nmi);
+	ur->add_undo_method(node, "remove_child", nmi);
+	ur->commit_action();
+}
+
 void MeshInstance3DEditor::_create_outline_mesh() {
 	Ref<Mesh> mesh = node->get_mesh();
 	if (mesh.is_null()) {
@@ -509,7 +517,7 @@ void MeshInstance3DEditor::_create_outline_mesh() {
 
 	ur->add_do_method(node, "add_child", mi, true);
 	ur->add_do_method(mi, "set_owner", owner);
-	ur->add_do_method(Node3DEditor::get_singleton(), SceneStringNames::get_singleton()->_request_gizmo, mi);
+	ur->add_do_method(Node3DEditor::get_singleton(), SceneStringName(_request_gizmo), mi);
 
 	ur->add_do_reference(mi);
 	ur->add_undo_method(node, "remove_child", mi);
@@ -541,7 +549,7 @@ MeshInstance3DEditor::MeshInstance3DEditor() {
 	options->get_popup()->add_item(TTR("View UV2"), MENU_OPTION_DEBUG_UV2);
 	options->get_popup()->add_item(TTR("Unwrap UV2 for Lightmap/AO"), MENU_OPTION_CREATE_UV2);
 
-	options->get_popup()->connect("id_pressed", callable_mp(this, &MeshInstance3DEditor::_menu_option));
+	options->get_popup()->connect(SceneStringName(id_pressed), callable_mp(this, &MeshInstance3DEditor::_menu_option));
 
 	outline_dialog = memnew(ConfirmationDialog);
 	outline_dialog->set_title(TTR("Create Outline Mesh"));
@@ -559,7 +567,7 @@ MeshInstance3DEditor::MeshInstance3DEditor() {
 	outline_dialog_vbc->add_margin_child(TTR("Outline Size:"), outline_size);
 
 	add_child(outline_dialog);
-	outline_dialog->connect("confirmed", callable_mp(this, &MeshInstance3DEditor::_create_outline_mesh));
+	outline_dialog->connect(SceneStringName(confirmed), callable_mp(this, &MeshInstance3DEditor::_create_outline_mesh));
 
 	shape_dialog = memnew(ConfirmationDialog);
 	shape_dialog->set_title(TTR("Create Collision Shape"));
@@ -597,7 +605,7 @@ MeshInstance3DEditor::MeshInstance3DEditor() {
 	shape_dialog_vbc->add_child(shape_type);
 
 	add_child(shape_dialog);
-	shape_dialog->connect("confirmed", callable_mp(this, &MeshInstance3DEditor::_create_collision_shape));
+	shape_dialog->connect(SceneStringName(confirmed), callable_mp(this, &MeshInstance3DEditor::_create_collision_shape));
 
 	err_dialog = memnew(AcceptDialog);
 	add_child(err_dialog);
@@ -607,16 +615,67 @@ MeshInstance3DEditor::MeshInstance3DEditor() {
 	add_child(debug_uv_dialog);
 	debug_uv = memnew(Control);
 	debug_uv->set_custom_minimum_size(Size2(600, 600) * EDSCALE);
-	debug_uv->connect("draw", callable_mp(this, &MeshInstance3DEditor::_debug_uv_draw));
+	debug_uv->connect(SceneStringName(draw), callable_mp(this, &MeshInstance3DEditor::_debug_uv_draw));
 	debug_uv_dialog->add_child(debug_uv);
+
+	navigation_mesh_dialog = memnew(ConfirmationDialog);
+	navigation_mesh_dialog->set_title(TTR("Create NavigationMesh"));
+	navigation_mesh_dialog->set_ok_button_text(TTR("Create"));
+
+	VBoxContainer *navigation_mesh_dialog_vbc = memnew(VBoxContainer);
+	navigation_mesh_dialog->add_child(navigation_mesh_dialog_vbc);
+
+	Label *navigation_mesh_l = memnew(Label);
+	navigation_mesh_l->set_text(TTR("Before converting a rendering mesh to a navigation mesh, please verify:\n\n- The mesh is two-dimensional.\n- The mesh has no surface overlap.\n- The mesh has no self-intersection.\n- The mesh surfaces have indices.\n\nIf the mesh does not fulfill these requirements, the pathfinding will be broken."));
+	navigation_mesh_dialog_vbc->add_child(navigation_mesh_l);
+
+	add_child(navigation_mesh_dialog);
+	navigation_mesh_dialog->connect("confirmed", callable_mp(this, &MeshInstance3DEditor::_create_navigation_mesh));
 }
 
 void MeshInstance3DEditorPlugin::edit(Object *p_object) {
-	mesh_editor->edit(Object::cast_to<MeshInstance3D>(p_object));
+	{
+		MeshInstance3D *mi = Object::cast_to<MeshInstance3D>(p_object);
+		if (mi) {
+			mesh_editor->edit(mi);
+			return;
+		}
+	}
+
+	Ref<MultiNodeEdit> mne = Ref<MultiNodeEdit>(p_object);
+	Node *edited_scene = EditorNode::get_singleton()->get_edited_scene();
+	if (mne.is_valid() && edited_scene) {
+		for (int i = 0; i < mne->get_node_count(); i++) {
+			MeshInstance3D *mi = Object::cast_to<MeshInstance3D>(edited_scene->get_node(mne->get_node(i)));
+			if (mi) {
+				mesh_editor->edit(mi);
+				return;
+			}
+		}
+	}
+	mesh_editor->edit(nullptr);
 }
 
 bool MeshInstance3DEditorPlugin::handles(Object *p_object) const {
-	return p_object->is_class("MeshInstance3D");
+	if (Object::cast_to<MeshInstance3D>(p_object)) {
+		return true;
+	}
+
+	Ref<MultiNodeEdit> mne = Ref<MultiNodeEdit>(p_object);
+	Node *edited_scene = EditorNode::get_singleton()->get_edited_scene();
+	if (mne.is_valid() && edited_scene) {
+		bool has_mesh = false;
+		for (int i = 0; i < mne->get_node_count(); i++) {
+			if (Object::cast_to<MeshInstance3D>(edited_scene->get_node(mne->get_node(i)))) {
+				if (has_mesh) {
+					return true;
+				} else {
+					has_mesh = true;
+				}
+			}
+		}
+	}
+	return false;
 }
 
 void MeshInstance3DEditorPlugin::make_visible(bool p_visible) {

@@ -31,6 +31,7 @@
 #include "editor_resource_picker.h"
 
 #include "editor/audio_stream_preview.h"
+#include "editor/editor_help.h"
 #include "editor/editor_node.h"
 #include "editor/editor_quick_open.h"
 #include "editor/editor_resource_preview.h"
@@ -102,7 +103,7 @@ void EditorResourcePicker::_update_resource_preview(const String &p_path, const 
 		}
 
 		if (p_preview.is_valid()) {
-			preview_rect->set_offset(SIDE_LEFT, assign_button->get_icon()->get_width() + assign_button->get_theme_stylebox(SNAME("normal"))->get_content_margin(SIDE_LEFT) + get_theme_constant(SNAME("h_separation"), SNAME("Button")));
+			preview_rect->set_offset(SIDE_LEFT, assign_button->get_icon()->get_width() + assign_button->get_theme_stylebox(CoreStringName(normal))->get_content_margin(SIDE_LEFT) + get_theme_constant(SNAME("h_separation"), SNAME("Button")));
 
 			// Resource-specific stretching.
 			if (Ref<GradientTexture1D>(edited_resource).is_valid() || Ref<Gradient>(edited_resource).is_valid()) {
@@ -373,7 +374,7 @@ void EditorResourcePicker::_edit_menu_cbk(int p_which) {
 				duplicate_resources_dialog = memnew(ConfirmationDialog);
 				add_child(duplicate_resources_dialog);
 				duplicate_resources_dialog->set_title(TTR("Make Unique (Recursive)"));
-				duplicate_resources_dialog->connect("confirmed", callable_mp(this, &EditorResourcePicker::_duplicate_selected_resources));
+				duplicate_resources_dialog->connect(SceneStringName(confirmed), callable_mp(this, &EditorResourcePicker::_duplicate_selected_resources));
 
 				VBoxContainer *vb = memnew(VBoxContainer);
 				duplicate_resources_dialog->add_child(vb);
@@ -504,6 +505,11 @@ void EditorResourcePicker::set_create_options(Object *p_menu_node) {
 			int id = TYPE_BASE_ID + idx;
 			edit_menu->add_icon_item(icon, vformat(TTR("New %s"), t), id);
 
+			HashMap<String, DocData::ClassDoc>::Iterator class_doc = EditorHelp::get_doc_data()->class_list.find(t);
+			if (class_doc) {
+				edit_menu->set_item_tooltip(-1, DTR(class_doc->value.brief_description));
+			}
+
 			idx++;
 		}
 
@@ -612,9 +618,9 @@ void EditorResourcePicker::_ensure_allowed_types() const {
 		const String base = allowed_types[i].strip_edges();
 		if (base == "BaseMaterial3D") {
 			allowed_types_with_convert.insert("Texture2D");
-		} else if (base == "ShaderMaterial") {
+		} else if (ClassDB::is_parent_class("ShaderMaterial", base)) {
 			allowed_types_with_convert.insert("Shader");
-		} else if (base == "Texture2D") {
+		} else if (ClassDB::is_parent_class("ImageTexture", base)) {
 			allowed_types_with_convert.insert("Image");
 		}
 	}
@@ -811,7 +817,7 @@ void EditorResourcePicker::_notification(int p_what) {
 		} break;
 
 		case NOTIFICATION_DRAW: {
-			draw_style_box(get_theme_stylebox(SNAME("panel"), SNAME("Tree")), Rect2(Point2(), get_size()));
+			draw_style_box(get_theme_stylebox(SceneStringName(panel), SNAME("Tree")), Rect2(Point2(), get_size()));
 		} break;
 
 		case NOTIFICATION_DRAG_BEGIN: {
@@ -947,7 +953,7 @@ void EditorResourcePicker::_ensure_resource_menu() {
 	edit_menu = memnew(PopupMenu);
 	edit_menu->add_theme_constant_override("icon_max_width", get_theme_constant(SNAME("class_icon_size"), EditorStringName(Editor)));
 	add_child(edit_menu);
-	edit_menu->connect("id_pressed", callable_mp(this, &EditorResourcePicker::_edit_menu_cbk));
+	edit_menu->connect(SceneStringName(id_pressed), callable_mp(this, &EditorResourcePicker::_edit_menu_cbk));
 	edit_menu->connect("popup_hide", callable_mp((BaseButton *)edit_button, &BaseButton::set_pressed).bind(false));
 }
 
@@ -1043,9 +1049,9 @@ EditorResourcePicker::EditorResourcePicker(bool p_hide_assign_button_controls) {
 	assign_button->set_auto_translate_mode(AUTO_TRANSLATE_MODE_DISABLED);
 	SET_DRAG_FORWARDING_GCD(assign_button, EditorResourcePicker);
 	add_child(assign_button);
-	assign_button->connect("pressed", callable_mp(this, &EditorResourcePicker::_resource_selected));
-	assign_button->connect("draw", callable_mp(this, &EditorResourcePicker::_button_draw));
-	assign_button->connect("gui_input", callable_mp(this, &EditorResourcePicker::_button_input));
+	assign_button->connect(SceneStringName(pressed), callable_mp(this, &EditorResourcePicker::_resource_selected));
+	assign_button->connect(SceneStringName(draw), callable_mp(this, &EditorResourcePicker::_button_draw));
+	assign_button->connect(SceneStringName(gui_input), callable_mp(this, &EditorResourcePicker::_button_input));
 
 	if (!p_hide_assign_button_controls) {
 		preview_rect = memnew(TextureRect);
@@ -1059,11 +1065,11 @@ EditorResourcePicker::EditorResourcePicker(bool p_hide_assign_button_controls) {
 	}
 
 	edit_button = memnew(Button);
-	edit_button->set_flat(true);
+	edit_button->set_flat(false);
 	edit_button->set_toggle_mode(true);
-	edit_button->connect("pressed", callable_mp(this, &EditorResourcePicker::_update_menu));
+	edit_button->connect(SceneStringName(pressed), callable_mp(this, &EditorResourcePicker::_update_menu));
 	add_child(edit_button);
-	edit_button->connect("gui_input", callable_mp(this, &EditorResourcePicker::_button_input));
+	edit_button->connect(SceneStringName(gui_input), callable_mp(this, &EditorResourcePicker::_button_input));
 
 	add_theme_constant_override("separation", 0);
 }
@@ -1231,8 +1237,8 @@ void EditorAudioStreamPicker::_notification(int p_what) {
 void EditorAudioStreamPicker::_update_resource() {
 	EditorResourcePicker::_update_resource();
 
-	Ref<Font> font = get_theme_font(SNAME("font"), SNAME("Label"));
-	int font_size = get_theme_font_size(SNAME("font_size"), SNAME("Label"));
+	Ref<Font> font = get_theme_font(SceneStringName(font), SNAME("Label"));
+	int font_size = get_theme_font_size(SceneStringName(font_size), SNAME("Label"));
 	Ref<AudioStream> audio_stream = get_edited_resource();
 	if (audio_stream.is_valid() && audio_stream->get_length() > 0.0) {
 		set_assign_button_min_size(Size2(1, font->get_height(font_size) * 3));
@@ -1250,19 +1256,17 @@ void EditorAudioStreamPicker::_preview_draw() {
 		return;
 	}
 
-	int font_size = get_theme_font_size(SNAME("font_size"), SNAME("Label"));
+	int font_size = get_theme_font_size(SceneStringName(font_size), SNAME("Label"));
 
 	get_assign_button()->set_text("");
 
 	Size2i size = stream_preview_rect->get_size();
-	Ref<Font> font = get_theme_font(SNAME("font"), SNAME("Label"));
+	Ref<Font> font = get_theme_font(SceneStringName(font), SNAME("Label"));
 
 	Rect2 rect(Point2(), size);
 
 	if (audio_stream->get_length() > 0 && size.width > 0) {
 		rect.size.height *= 0.5;
-
-		stream_preview_rect->draw_rect(rect, Color(0, 0, 0, 1));
 
 		Ref<AudioStreamPreview> preview = AudioStreamPreviewGenerator::get_singleton()->generate_preview(audio_stream);
 		float preview_len = preview->get_length();
@@ -1319,8 +1323,8 @@ void EditorAudioStreamPicker::_preview_draw() {
 		text = audio_stream->get_class().replace_first("AudioStream", "");
 	}
 
-	stream_preview_rect->draw_texture(icon, Point2i(EDSCALE * 2, rect.position.y + (rect.size.height - icon->get_height()) / 2), icon_modulate);
-	stream_preview_rect->draw_string(font, Point2i(EDSCALE * 2 + icon->get_width(), rect.position.y + font->get_ascent(font_size) + (rect.size.height - font->get_height(font_size)) / 2), text, HORIZONTAL_ALIGNMENT_CENTER, size.width - 4 * EDSCALE - icon->get_width());
+	stream_preview_rect->draw_texture(icon, Point2i(EDSCALE * 4, rect.position.y + (rect.size.height - icon->get_height()) / 2), icon_modulate);
+	stream_preview_rect->draw_string(font, Point2i(EDSCALE * 4 + icon->get_width(), rect.position.y + font->get_ascent(font_size) + (rect.size.height - font->get_height(font_size)) / 2), text, HORIZONTAL_ALIGNMENT_CENTER, size.width - 4 * EDSCALE - icon->get_width(), font_size, get_theme_color(SNAME("font_color"), EditorStringName(Editor)));
 }
 
 EditorAudioStreamPicker::EditorAudioStreamPicker() :
@@ -1332,7 +1336,7 @@ EditorAudioStreamPicker::EditorAudioStreamPicker() :
 	stream_preview_rect->set_offset(SIDE_BOTTOM, -1);
 	stream_preview_rect->set_offset(SIDE_RIGHT, -1);
 	stream_preview_rect->set_mouse_filter(MOUSE_FILTER_IGNORE);
-	stream_preview_rect->connect("draw", callable_mp(this, &EditorAudioStreamPicker::_preview_draw));
+	stream_preview_rect->connect(SceneStringName(draw), callable_mp(this, &EditorAudioStreamPicker::_preview_draw));
 
 	get_assign_button()->add_child(stream_preview_rect);
 	get_assign_button()->move_child(stream_preview_rect, 0);

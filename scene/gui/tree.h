@@ -479,6 +479,7 @@ private:
 
 	VBoxContainer *popup_editor_vb = nullptr;
 
+	bool popup_edit_commited = true;
 	Popup *popup_editor = nullptr;
 	LineEdit *line_editor = nullptr;
 	TextEdit *text_editor = nullptr;
@@ -697,6 +698,8 @@ public:
 
 	virtual String get_tooltip(const Point2 &p_pos) const override;
 
+	virtual bool can_drop_data(const Point2 &p_point, const Variant &p_data) const override;
+	virtual Variant get_drag_data(const Point2 &p_point) override;
 	TreeItem *get_item_at_position(const Point2 &p_pos) const;
 	int get_column_at_position(const Point2 &p_pos) const;
 	int get_drop_section_at_position(const Point2 &p_pos) const;

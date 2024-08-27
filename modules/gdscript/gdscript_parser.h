@@ -902,8 +902,11 @@ public:
 			VariableNode *variable_source;
 			ConstantNode *constant_source;
 			SignalNode *signal_source;
+			FunctionNode *function_source;
 		};
-		FunctionNode *source_function = nullptr;
+		bool function_source_is_static = false; // For non-GDScript scripts.
+
+		FunctionNode *source_function = nullptr; // TODO: Rename to disambiguate `function_source`.
 
 		int usages = 0; // Useful for binds/iterator variable.
 
@@ -1311,7 +1314,7 @@ public:
 		Variant::Type builtin_type = Variant::VARIANT_MAX;
 		Node *node = nullptr;
 		Object *base = nullptr;
-		List<Ref<GDScriptParserRef>> dependent_parsers;
+		GDScriptParser *parser = nullptr;
 	};
 
 	struct CompletionCall {
@@ -1326,6 +1329,7 @@ private:
 	bool _is_tool = false;
 	String script_path;
 	bool for_completion = false;
+	bool parse_body = true;
 	bool panic_mode = false;
 	bool can_break = false;
 	bool can_continue = false;
@@ -1429,8 +1433,6 @@ private:
 	void reset_extents(Node *p_node, GDScriptTokenizer::Token p_token);
 	void reset_extents(Node *p_node, Node *p_from);
 
-	HashSet<String> dependencies;
-
 	template <typename T>
 	T *alloc_node() {
 		T *node = memnew(T);
@@ -1453,9 +1455,11 @@ private:
 	}
 	void apply_pending_warnings();
 #endif
-
-	void make_completion_context(CompletionType p_type, Node *p_node, int p_argument = -1, bool p_force = false);
-	void make_completion_context(CompletionType p_type, Variant::Type p_builtin_type, bool p_force = false);
+	void make_completion_context(CompletionType p_type, Node *p_node, int p_argument = -1);
+	void make_completion_context(CompletionType p_type, Variant::Type p_builtin_type);
+	// In some cases it might become necessary to alter the completion context after parsing a subexpression.
+	// For example to not override COMPLETE_CALL_ARGUMENTS with COMPLETION_NONE from string literals.
+	void override_completion_context(const Node *p_for_node, CompletionType p_type, Node *p_node, int p_argument = -1);
 	void push_completion_call(Node *p_call);
 	void pop_completion_call();
 	void set_last_completion_call_arg(int p_argument);
@@ -1496,6 +1500,7 @@ private:
 	bool onready_annotation(const AnnotationNode *p_annotation, Node *p_target, ClassNode *p_class);
 	template <PropertyHint t_hint, Variant::Type t_type>
 	bool export_annotations(const AnnotationNode *p_annotation, Node *p_target, ClassNode *p_class);
+	bool export_storage_annotation(const AnnotationNode *p_annotation, Node *p_target, ClassNode *p_class);
 	bool export_custom_annotation(const AnnotationNode *p_annotation, Node *p_target, ClassNode *p_class);
 	template <PropertyUsageFlags t_usage>
 	bool export_group_annotations(const AnnotationNode *p_annotation, Node *p_target, ClassNode *p_class);
@@ -1558,7 +1563,7 @@ private:
 #endif // TOOLS_ENABLED
 
 public:
-	Error parse(const String &p_source_code, const String &p_script_path, bool p_for_completion);
+	Error parse(const String &p_source_code, const String &p_script_path, bool p_for_completion, bool p_parse_body = true);
 	Error parse_binary(const Vector<uint8_t> &p_binary, const String &p_script_path);
 	ClassNode *get_tree() const { return head; }
 	bool is_tool() const { return _is_tool; }
@@ -1574,11 +1579,9 @@ public:
 	bool annotation_exists(const String &p_annotation_name) const;
 
 	const List<ParserError> &get_errors() const { return errors; }
-	const HashSet<String> &get_dependencies() const {
-		return dependencies;
-	}
-	void add_dependency(const String &p_dependency) {
-		dependencies.insert(p_dependency);
+	const List<String> get_dependencies() const {
+		// TODO: Keep track of deps.
+		return List<String>();
 	}
 #ifdef DEBUG_ENABLED
 	const List<GDScriptWarning> &get_warnings() const { return warnings; }

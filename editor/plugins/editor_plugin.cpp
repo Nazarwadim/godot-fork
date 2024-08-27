@@ -100,6 +100,11 @@ void EditorPlugin::remove_control_from_bottom_panel(Control *p_control) {
 	EditorNode::get_bottom_panel()->remove_item(p_control);
 }
 
+void EditorPlugin::set_dock_tab_icon(Control *p_control, const Ref<Texture2D> &p_icon) {
+	ERR_FAIL_NULL(p_control);
+	EditorDockManager::get_singleton()->set_dock_tab_icon(p_control, p_icon);
+}
+
 void EditorPlugin::add_control_to_container(CustomControlContainer p_location, Control *p_control) {
 	ERR_FAIL_NULL(p_control);
 
@@ -409,13 +414,21 @@ void EditorPlugin::remove_translation_parser_plugin(const Ref<EditorTranslationP
 void EditorPlugin::add_import_plugin(const Ref<EditorImportPlugin> &p_importer, bool p_first_priority) {
 	ERR_FAIL_COND(!p_importer.is_valid());
 	ResourceFormatImporter::get_singleton()->add_importer(p_importer, p_first_priority);
-	callable_mp(EditorFileSystem::get_singleton(), &EditorFileSystem::scan).call_deferred();
+	// Plugins are now loaded during the first scan. It's important not to start another scan,
+	// even a deferred one, as it would cause a scan during a scan at the next main thread iteration.
+	if (!EditorFileSystem::get_singleton()->doing_first_scan()) {
+		callable_mp(EditorFileSystem::get_singleton(), &EditorFileSystem::scan).call_deferred();
+	}
 }
 
 void EditorPlugin::remove_import_plugin(const Ref<EditorImportPlugin> &p_importer) {
 	ERR_FAIL_COND(!p_importer.is_valid());
 	ResourceFormatImporter::get_singleton()->remove_importer(p_importer);
-	callable_mp(EditorFileSystem::get_singleton(), &EditorFileSystem::scan).call_deferred();
+	// Plugins are now loaded during the first scan. It's important not to start another scan,
+	// even a deferred one, as it would cause a scan during a scan at the next main thread iteration.
+	if (!EditorNode::get_singleton()->is_exiting() && !EditorFileSystem::get_singleton()->doing_first_scan()) {
+		callable_mp(EditorFileSystem::get_singleton(), &EditorFileSystem::scan).call_deferred();
+	}
 }
 
 void EditorPlugin::add_export_plugin(const Ref<EditorExportPlugin> &p_exporter) {
@@ -565,6 +578,7 @@ void EditorPlugin::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("remove_control_from_docks", "control"), &EditorPlugin::remove_control_from_docks);
 	ClassDB::bind_method(D_METHOD("remove_control_from_bottom_panel", "control"), &EditorPlugin::remove_control_from_bottom_panel);
 	ClassDB::bind_method(D_METHOD("remove_control_from_container", "container", "control"), &EditorPlugin::remove_control_from_container);
+	ClassDB::bind_method(D_METHOD("set_dock_tab_icon", "control", "icon"), &EditorPlugin::set_dock_tab_icon);
 	ClassDB::bind_method(D_METHOD("add_tool_menu_item", "name", "callable"), &EditorPlugin::add_tool_menu_item);
 	ClassDB::bind_method(D_METHOD("add_tool_submenu_item", "name", "submenu"), &EditorPlugin::add_tool_submenu_item);
 	ClassDB::bind_method(D_METHOD("remove_tool_menu_item", "name"), &EditorPlugin::remove_tool_menu_item);

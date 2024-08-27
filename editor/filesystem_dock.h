@@ -59,6 +59,7 @@ class FileSystemTree : public Tree {
 class FileSystemList : public ItemList {
 	GDCLASS(FileSystemList, ItemList);
 
+	bool popup_edit_commited = true;
 	VBoxContainer *popup_editor_vb = nullptr;
 	Popup *popup_editor = nullptr;
 	LineEdit *line_editor = nullptr;
@@ -141,7 +142,6 @@ private:
 		FILE_NEW_SCENE,
 	};
 
-	HashMap<String, String> icon_cache;
 	HashMap<String, Color> folder_colors;
 	Dictionary assigned_folder_colors;
 
@@ -249,7 +249,6 @@ private:
 	void _reselect_items_selected_on_drag_begin(bool reset = false);
 
 	Ref<Texture2D> _get_tree_item_icon(bool p_is_valid, const String &p_file_type, const String &p_icon_path);
-	String _get_entry_script_icon(const EditorFileSystemDirectory *p_dir, int p_file);
 	bool _create_tree(TreeItem *p_parent, EditorFileSystemDirectory *p_dir, Vector<String> &uncollapsed_paths, bool p_select_in_favorites, bool p_unfold_path = false);
 	void _update_tree(const Vector<String> &p_uncollapsed_paths = Vector<String>(), bool p_uncollapse_root = false, bool p_select_in_favorites = false, bool p_unfold_path = false);
 	void _navigate_to_path(const String &p_path, bool p_select_in_favorites = false);
@@ -360,6 +359,7 @@ private:
 	void _update_display_mode(bool p_force = false);
 
 	Vector<String> _tree_get_selected(bool remove_self_inclusion = true, bool p_include_unselected_cursor = false) const;
+	Vector<String> _file_list_get_selected() const;
 
 	bool _is_file_type_disabled_by_feature_profile(const StringName &p_class);
 

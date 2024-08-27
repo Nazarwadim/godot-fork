@@ -31,7 +31,6 @@
 #include "script_language.h"
 
 #include "core/config/project_settings.h"
-#include "core/core_string_names.h"
 #include "core/debugger/engine_debugger.h"
 #include "core/debugger/script_debugger.h"
 #include "core/io/resource_loader.h"
@@ -492,10 +491,6 @@ void ScriptServer::save_global_classes() {
 	ProjectSettings::get_singleton()->store_global_class_list(gcarr);
 }
 
-String ScriptServer::get_global_class_cache_file_path() {
-	return ProjectSettings::get_singleton()->get_global_class_list_path();
-}
-
 ////////////////////
 
 ScriptCodeCompletionCache *ScriptCodeCompletionCache::singleton = nullptr;
@@ -537,6 +532,7 @@ void ScriptLanguage::get_core_type_words(List<String> *p_core_type_words) const 
 	p_core_type_words->push_back("PackedVector2Array");
 	p_core_type_words->push_back("PackedVector3Array");
 	p_core_type_words->push_back("PackedColorArray");
+	p_core_type_words->push_back("PackedVector4Array");
 }
 
 void ScriptLanguage::frame() {
@@ -697,7 +693,13 @@ bool PlaceHolderScriptInstance::has_method(const StringName &p_method) const {
 	}
 
 	if (script.is_valid()) {
-		return script->has_method(p_method);
+		Ref<Script> scr = script;
+		while (scr.is_valid()) {
+			if (scr->has_method(p_method)) {
+				return true;
+			}
+			scr = scr->get_base_script();
+		}
 	}
 	return false;
 }

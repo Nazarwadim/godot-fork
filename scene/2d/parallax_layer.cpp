@@ -71,20 +71,14 @@ void ParallaxLayer::_update_mirroring() {
 	if (pb) {
 		RID c = pb->get_canvas();
 		RID ci = get_canvas_item();
-		Point2 mirrorScale = mirroring * get_scale();
-		RenderingServer::get_singleton()->canvas_set_item_mirroring(c, ci, mirrorScale);
+		Point2 mirror_scale = mirroring * orig_scale;
+		RenderingServer::get_singleton()->canvas_set_item_mirroring(c, ci, mirror_scale);
 		RenderingServer::get_singleton()->canvas_item_set_interpolated(ci, false);
 	}
 }
 
 void ParallaxLayer::set_mirroring(const Size2 &p_mirroring) {
-	mirroring = p_mirroring;
-	if (mirroring.x < 0) {
-		mirroring.x = 0;
-	}
-	if (mirroring.y < 0) {
-		mirroring.y = 0;
-	}
+	mirroring = p_mirroring.maxf(0);
 
 	_update_mirroring();
 }

@@ -617,7 +617,7 @@ Vector3 NavMap::get_closest_point_to_segment(const Vector3 &p_from, const Vector
 			const Face3 f(p.points[0].pos, p.points[point_id - 1].pos, p.points[point_id].pos);
 			Vector3 inters;
 			if (f.intersects_segment(p_from, p_to, &inters)) {
-				const real_t d = closest_point_d = p_from.distance_to(inters);
+				const real_t d = p_from.distance_to(inters);
 				if (use_collision == false) {
 					closest_point = inters;
 					use_collision = true;
@@ -627,9 +627,25 @@ Vector3 NavMap::get_closest_point_to_segment(const Vector3 &p_from, const Vector
 					closest_point_d = d;
 				}
 			}
-		}
+			// If segment does not itersect face, check the distance from segment's endpoints.
+			else if (!use_collision) {
+				const Vector3 p_from_closest = f.get_closest_point_to(p_from);
+				const real_t d_p_from = p_from.distance_to(p_from_closest);
+				if (closest_point_d > d_p_from) {
+					closest_point = p_from_closest;
+					closest_point_d = d_p_from;
+				}
 
-		if (use_collision == false) {
+				const Vector3 p_to_closest = f.get_closest_point_to(p_to);
+				const real_t d_p_to = p_to.distance_to(p_to_closest);
+				if (closest_point_d > d_p_to) {
+					closest_point = p_to_closest;
+					closest_point_d = d_p_to;
+				}
+			}
+		}
+		// Finally, check for a case when shortest distance is between some point located on a face's edge and some point located on a line segment.
+		if (!use_collision) {
 			for (size_t point_id = 0; point_id < p.points.size(); point_id += 1) {
 				Vector3 a, b;
 
@@ -734,7 +750,7 @@ void NavMap::remove_link(NavLink *p_link) {
 }
 
 bool NavMap::has_agent(NavAgent *agent) const {
-	return (agents.find(agent) >= 0);
+	return agents.has(agent);
 }
 
 void NavMap::add_agent(NavAgent *agent) {
@@ -754,7 +770,7 @@ void NavMap::remove_agent(NavAgent *agent) {
 }
 
 bool NavMap::has_obstacle(NavObstacle *obstacle) const {
-	return (obstacles.find(obstacle) >= 0);
+	return obstacles.has(obstacle);
 }
 
 void NavMap::add_obstacle(NavObstacle *obstacle) {
@@ -891,6 +907,7 @@ void NavMap::sync() {
 	int _new_pm_edge_merge_count = pm_edge_merge_count;
 	int _new_pm_edge_connection_count = pm_edge_connection_count;
 	int _new_pm_edge_free_count = pm_edge_free_count;
+	int _new_pm_obstacle_count = obstacles.size();
 
 	// Check if we need to update the links.
 	if (regenerate_polygons) {
@@ -920,8 +937,9 @@ void NavMap::sync() {
 		_new_pm_edge_free_count = 0;
 
 		// Remove regions connections.
+		region_external_connections.clear();
 		for (NavRegion *region : regions) {
-			region->get_connections().clear();
+			region_external_connections[region] = LocalVector<gd::Edge::Connection>();
 		}
 
 		// Resize the polygon count.
@@ -1055,7 +1073,7 @@ void NavMap::sync() {
 				free_edge.polygon->edges[free_edge.edge].connections.push_back(new_connection);
 
 				// Add the connection to the region_connection map.
-				((NavRegion *)free_edge.polygon->owner)->get_connections().push_back(new_connection);
+				region_external_connections[(NavRegion *)free_edge.polygon->owner].push_back(new_connection);
 				_new_pm_edge_connection_count += 1;
 			}
 		}
@@ -1131,13 +1149,6 @@ void NavMap::sync() {
 				new_polygon.points.push_back({ closest_end_point, get_point_key(closest_end_point) });
 				new_polygon.points.push_back({ closest_end_point, get_point_key(closest_end_point) });
 
-				Vector3 center;
-				for (int p = 0; p < 4; ++p) {
-					center += new_polygon.points[p].pos;
-				}
-				new_polygon.center = center / real_t(new_polygon.points.size());
-				new_polygon.clockwise = true;
-
 				// Setup connections to go forward in the link.
 				{
 					gd::Edge::Connection entry_connection;
@@ -1210,6 +1221,7 @@ void NavMap::sync() {
 	pm_edge_merge_count = _new_pm_edge_merge_count;
 	pm_edge_connection_count = _new_pm_edge_connection_count;
 	pm_edge_free_count = _new_pm_edge_free_count;
+	pm_obstacle_count = _new_pm_obstacle_count;
 }
 
 void NavMap::_update_rvo_obstacles_tree_2d() {
@@ -1415,6 +1427,40 @@ void NavMap::clip_path(const LocalVector<gd::NavigationPoly> &p_navigation_polys
 void NavMap::_update_merge_rasterizer_cell_dimensions() {
 	merge_rasterizer_cell_size = cell_size * merge_rasterizer_cell_scale;
 	merge_rasterizer_cell_height = cell_height * merge_rasterizer_cell_scale;
+}
+
+int NavMap::get_region_connections_count(NavRegion *p_region) const {
+	ERR_FAIL_NULL_V(p_region, 0);
+
+	HashMap<NavRegion *, LocalVector<gd::Edge::Connection>>::ConstIterator found_connections = region_external_connections.find(p_region);
+	if (found_connections) {
+		return found_connections->value.size();
+	}
+	return 0;
+}
+
+Vector3 NavMap::get_region_connection_pathway_start(NavRegion *p_region, int p_connection_id) const {
+	ERR_FAIL_NULL_V(p_region, Vector3());
+
+	HashMap<NavRegion *, LocalVector<gd::Edge::Connection>>::ConstIterator found_connections = region_external_connections.find(p_region);
+	if (found_connections) {
+		ERR_FAIL_INDEX_V(p_connection_id, int(found_connections->value.size()), Vector3());
+		return found_connections->value[p_connection_id].pathway_start;
+	}
+
+	return Vector3();
+}
+
+Vector3 NavMap::get_region_connection_pathway_end(NavRegion *p_region, int p_connection_id) const {
+	ERR_FAIL_NULL_V(p_region, Vector3());
+
+	HashMap<NavRegion *, LocalVector<gd::Edge::Connection>>::ConstIterator found_connections = region_external_connections.find(p_region);
+	if (found_connections) {
+		ERR_FAIL_INDEX_V(p_connection_id, int(found_connections->value.size()), Vector3());
+		return found_connections->value[p_connection_id].pathway_end;
+	}
+
+	return Vector3();
 }
 
 NavMap::NavMap() {

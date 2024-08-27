@@ -352,6 +352,7 @@ void TextServer::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("font_has_char", "font_rid", "char"), &TextServer::font_has_char);
 	ClassDB::bind_method(D_METHOD("font_get_supported_chars", "font_rid"), &TextServer::font_get_supported_chars);
+	ClassDB::bind_method(D_METHOD("font_get_supported_glyphs", "font_rid"), &TextServer::font_get_supported_glyphs);
 
 	ClassDB::bind_method(D_METHOD("font_render_range", "font_rid", "size", "start", "end"), &TextServer::font_render_range);
 	ClassDB::bind_method(D_METHOD("font_render_glyph", "font_rid", "size", "index"), &TextServer::font_render_glyph);
@@ -490,6 +491,7 @@ void TextServer::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("strip_diacritics", "string"), &TextServer::strip_diacritics);
 	ClassDB::bind_method(D_METHOD("is_valid_identifier", "string"), &TextServer::is_valid_identifier);
+	ClassDB::bind_method(D_METHOD("is_valid_letter", "unicode"), &TextServer::is_valid_letter);
 
 	ClassDB::bind_method(D_METHOD("string_to_upper", "string", "language"), &TextServer::string_to_upper, DEFVAL(""));
 	ClassDB::bind_method(D_METHOD("string_to_lower", "string", "language"), &TextServer::string_to_lower, DEFVAL(""));
@@ -1562,7 +1564,7 @@ int64_t TextServer::shaped_text_prev_grapheme_pos(const RID &p_shaped, int64_t p
 
 int64_t TextServer::shaped_text_prev_character_pos(const RID &p_shaped, int64_t p_pos) const {
 	const PackedInt32Array &chars = shaped_text_get_character_breaks(p_shaped);
-	int64_t prev = 0;
+	int64_t prev = shaped_text_get_range(p_shaped).x;
 	for (const int32_t &E : chars) {
 		if (E >= p_pos) {
 			return prev;
@@ -1574,7 +1576,7 @@ int64_t TextServer::shaped_text_prev_character_pos(const RID &p_shaped, int64_t 
 
 int64_t TextServer::shaped_text_next_character_pos(const RID &p_shaped, int64_t p_pos) const {
 	const PackedInt32Array &chars = shaped_text_get_character_breaks(p_shaped);
-	int64_t prev = 0;
+	int64_t prev = shaped_text_get_range(p_shaped).x;
 	for (const int32_t &E : chars) {
 		if (E > p_pos) {
 			return E;
@@ -1586,7 +1588,7 @@ int64_t TextServer::shaped_text_next_character_pos(const RID &p_shaped, int64_t 
 
 int64_t TextServer::shaped_text_closest_character_pos(const RID &p_shaped, int64_t p_pos) const {
 	const PackedInt32Array &chars = shaped_text_get_character_breaks(p_shaped);
-	int64_t prev = 0;
+	int64_t prev = shaped_text_get_range(p_shaped).x;
 	for (const int32_t &E : chars) {
 		if (E == p_pos) {
 			return E;
@@ -2180,6 +2182,10 @@ bool TextServer::is_valid_identifier(const String &p_string) const {
 		}
 	}
 	return true;
+}
+
+bool TextServer::is_valid_letter(uint64_t p_unicode) const {
+	return is_unicode_letter(p_unicode);
 }
 
 TextServer::TextServer() {

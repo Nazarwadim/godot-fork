@@ -118,8 +118,20 @@ Error ResourceFormatImporter::_get_path_and_type(const String &p_path, PathAndTy
 	}
 #endif
 
-	if (r_path_and_type.path.is_empty() || r_path_and_type.type.is_empty()) {
+	if (r_path_and_type.type.is_empty()) {
 		return ERR_FILE_CORRUPT;
+	}
+	if (r_path_and_type.path.is_empty()) {
+		// Some importers may not write files to the .godot folder, so the path can be empty.
+		if (r_path_and_type.importer.is_empty()) {
+			return ERR_FILE_CORRUPT;
+		}
+
+		// It's only invalid if the extension for the importer is not empty.
+		Ref<ResourceImporter> importer = get_importer_by_name(r_path_and_type.importer);
+		if (importer.is_null() || !importer->get_save_extension().is_empty()) {
+			return ERR_FILE_CORRUPT;
+		}
 	}
 	return OK;
 }
@@ -352,6 +364,23 @@ ResourceUID::ID ResourceFormatImporter::get_resource_uid(const String &p_path) c
 	return pat.uid;
 }
 
+Error ResourceFormatImporter::get_resource_import_info(const String &p_path, StringName &r_type, ResourceUID::ID &r_uid, String &r_import_group_file) const {
+	PathAndType pat;
+	Error err = _get_path_and_type(p_path, pat);
+
+	if (err == OK) {
+		r_type = pat.type;
+		r_uid = pat.uid;
+		r_import_group_file = pat.group_file;
+	} else {
+		r_type = "";
+		r_uid = ResourceUID::INVALID_ID;
+		r_import_group_file = "";
+	}
+
+	return err;
+}
+
 Variant ResourceFormatImporter::get_resource_metadata(const String &p_path) const {
 	PathAndType pat;
 	Error err = _get_path_and_type(p_path, pat);
@@ -410,6 +439,7 @@ void ResourceFormatImporter::get_importers_for_extension(const String &p_extensi
 		for (const String &F : local_exts) {
 			if (p_extension.to_lower() == F) {
 				r_importers->push_back(importers[i]);
+				break;
 			}
 		}
 	}

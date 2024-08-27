@@ -32,8 +32,8 @@
 
 #include "core/object/script_language.h"
 #include "core/os/os.h"
+#include "core/os/safe_binary_mutex.h"
 #include "core/os/thread_safe.h"
-#include "core/templates/command_queue_mt.h"
 
 WorkerThreadPool::Task *const WorkerThreadPool::ThreadData::YIELDING = (Task *)1;
 
@@ -46,18 +46,23 @@ void WorkerThreadPool::Task::free_template_userdata() {
 
 WorkerThreadPool *WorkerThreadPool::singleton = nullptr;
 
-thread_local CommandQueueMT *WorkerThreadPool::flushing_cmd_queue = nullptr;
+#ifdef THREADS_ENABLED
+thread_local WorkerThreadPool::UnlockableLocks WorkerThreadPool::unlockable_locks[MAX_UNLOCKABLE_LOCKS];
+#endif
 
 void WorkerThreadPool::_process_task(Task *p_task) {
 #ifdef THREADS_ENABLED
 	int pool_thread_index = thread_ids[Thread::get_caller_id()];
 	ThreadData &curr_thread = threads[pool_thread_index];
 	Task *prev_task = nullptr; // In case this is recursively called.
+
 	bool safe_for_nodes_backup = is_current_thread_safe_for_nodes();
+	CallQueue *call_queue_backup = MessageQueue::get_singleton() != MessageQueue::get_main_singleton() ? MessageQueue::get_singleton() : nullptr;
 
 	{
-		// Tasks must start with this unset. They are free to set-and-forget otherwise.
+		// Tasks must start with these at default values. They are free to set-and-forget otherwise.
 		set_current_thread_safe_for_nodes(false);
+		MessageQueue::set_thread_singleton_override(nullptr);
 		// Since the WorkerThreadPool is started before the script server,
 		// its pre-created threads can't have ScriptServer::thread_enter() called on them early.
 		// Therefore, we do it late at the first opportunity, so in case the task
@@ -77,6 +82,10 @@ void WorkerThreadPool::_process_task(Task *p_task) {
 		}
 		task_mutex.unlock();
 	}
+#endif
+
+#ifdef THREADS_ENABLED
+	bool low_priority = p_task->low_priority;
 #endif
 
 	if (p_task->group) {
@@ -155,7 +164,7 @@ void WorkerThreadPool::_process_task(Task *p_task) {
 #ifdef THREADS_ENABLED
 	{
 		curr_thread.current_task = prev_task;
-		if (p_task->low_priority) {
+		if (low_priority) {
 			low_priority_threads_used--;
 
 			if (_try_promote_low_priority_task()) {
@@ -169,6 +178,7 @@ void WorkerThreadPool::_process_task(Task *p_task) {
 	}
 
 	set_current_thread_safe_for_nodes(safe_for_nodes_backup);
+	MessageQueue::set_thread_singleton_override(call_queue_backup);
 #endif
 }
 
@@ -393,16 +403,17 @@ Error WorkerThreadPool::wait_for_task_completion(TaskID p_task_id) {
 		task->waiting_user++;
 	}
 
-	task_mutex.unlock();
-
 	if (caller_pool_thread) {
+		task_mutex.unlock();
 		_wait_collaboratively(caller_pool_thread, task);
+		task_mutex.lock();
 		task->waiting_pool--;
 		if (task->waiting_pool == 0 && task->waiting_user == 0) {
 			tasks.erase(p_task_id);
 			task_allocator.free(task);
 		}
 	} else {
+		task_mutex.unlock();
 		task->done_semaphore.wait();
 		task_mutex.lock();
 		task->waiting_user--;
@@ -410,10 +421,30 @@ Error WorkerThreadPool::wait_for_task_completion(TaskID p_task_id) {
 			tasks.erase(p_task_id);
 			task_allocator.free(task);
 		}
-		task_mutex.unlock();
 	}
 
+	task_mutex.unlock();
 	return OK;
+}
+
+void WorkerThreadPool::_lock_unlockable_mutexes() {
+#ifdef THREADS_ENABLED
+	for (uint32_t i = 0; i < MAX_UNLOCKABLE_LOCKS; i++) {
+		if (unlockable_locks[i].ulock) {
+			unlockable_locks[i].ulock->lock();
+		}
+	}
+#endif
+}
+
+void WorkerThreadPool::_unlock_unlockable_mutexes() {
+#ifdef THREADS_ENABLED
+	for (uint32_t i = 0; i < MAX_UNLOCKABLE_LOCKS; i++) {
+		if (unlockable_locks[i].ulock) {
+			unlockable_locks[i].ulock->unlock();
+		}
+	}
+#endif
 }
 
 void WorkerThreadPool::_wait_collaboratively(ThreadData *p_caller_pool_thread, Task *p_task) {
@@ -423,6 +454,7 @@ void WorkerThreadPool::_wait_collaboratively(ThreadData *p_caller_pool_thread, T
 
 	while (true) {
 		Task *task_to_process = nullptr;
+		bool relock_unlockables = false;
 		{
 			MutexLock lock(task_mutex);
 			bool was_signaled = p_caller_pool_thread->signaled;
@@ -460,18 +492,18 @@ void WorkerThreadPool::_wait_collaboratively(ThreadData *p_caller_pool_thread, T
 				if (!task_to_process) {
 					p_caller_pool_thread->awaited_task = p_task;
 
-					if (flushing_cmd_queue) {
-						flushing_cmd_queue->unlock();
-					}
+					_unlock_unlockable_mutexes();
+					relock_unlockables = true;
 					p_caller_pool_thread->cond_var.wait(lock);
-					if (flushing_cmd_queue) {
-						flushing_cmd_queue->lock();
-					}
 
 					DEV_ASSERT(exit_threads || p_caller_pool_thread->signaled || IS_WAIT_OVER);
 					p_caller_pool_thread->awaited_task = nullptr;
 				}
 			}
+		}
+
+		if (relock_unlockables) {
+			_lock_unlockable_mutexes();
 		}
 
 		if (task_to_process) {
@@ -600,13 +632,9 @@ void WorkerThreadPool::wait_for_group_task_completion(GroupID p_group) {
 	{
 		Group *group = *groupp;
 
-		if (flushing_cmd_queue) {
-			flushing_cmd_queue->unlock();
-		}
+		_unlock_unlockable_mutexes();
 		group->done_semaphore.wait();
-		if (flushing_cmd_queue) {
-			flushing_cmd_queue->lock();
-		}
+		_lock_unlockable_mutexes();
 
 		uint32_t max_users = group->tasks_used + 1; // Add 1 because the thread waiting for it is also user. Read before to avoid another thread freeing task after increment.
 		uint32_t finished_users = group->finished.increment(); // fetch happens before inc, so increment later.
@@ -630,15 +658,40 @@ int WorkerThreadPool::get_thread_index() {
 	return singleton->thread_ids.has(tid) ? singleton->thread_ids[tid] : -1;
 }
 
-void WorkerThreadPool::thread_enter_command_queue_mt_flush(CommandQueueMT *p_queue) {
-	ERR_FAIL_COND(flushing_cmd_queue != nullptr);
-	flushing_cmd_queue = p_queue;
+WorkerThreadPool::TaskID WorkerThreadPool::get_caller_task_id() {
+	int th_index = get_thread_index();
+	if (th_index != -1 && singleton->threads[th_index].current_task) {
+		return singleton->threads[th_index].current_task->self;
+	} else {
+		return INVALID_TASK_ID;
+	}
 }
 
-void WorkerThreadPool::thread_exit_command_queue_mt_flush() {
-	ERR_FAIL_NULL(flushing_cmd_queue);
-	flushing_cmd_queue = nullptr;
+#ifdef THREADS_ENABLED
+uint32_t WorkerThreadPool::_thread_enter_unlock_allowance_zone(THREADING_NAMESPACE::unique_lock<THREADING_NAMESPACE::mutex> &p_ulock) {
+	for (uint32_t i = 0; i < MAX_UNLOCKABLE_LOCKS; i++) {
+		DEV_ASSERT((bool)unlockable_locks[i].ulock == (bool)unlockable_locks[i].rc);
+		if (unlockable_locks[i].ulock == &p_ulock) {
+			// Already registered in the current thread.
+			unlockable_locks[i].rc++;
+			return i;
+		} else if (!unlockable_locks[i].ulock) {
+			unlockable_locks[i].ulock = &p_ulock;
+			unlockable_locks[i].rc = 1;
+			return i;
+		}
+	}
+	ERR_FAIL_V_MSG(UINT32_MAX, "No more unlockable lock slots available. Engine bug.");
 }
+
+void WorkerThreadPool::thread_exit_unlock_allowance_zone(uint32_t p_zone_id) {
+	DEV_ASSERT(unlockable_locks[p_zone_id].ulock && unlockable_locks[p_zone_id].rc);
+	unlockable_locks[p_zone_id].rc--;
+	if (unlockable_locks[p_zone_id].rc == 0) {
+		unlockable_locks[p_zone_id].ulock = nullptr;
+	}
+}
+#endif
 
 void WorkerThreadPool::init(int p_thread_count, float p_low_priority_task_ratio) {
 	ERR_FAIL_COND(threads.size() > 0);

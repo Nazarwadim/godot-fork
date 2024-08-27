@@ -136,7 +136,7 @@
 				        }
 				    }
 
-				    private List&lt;int&gt; _numbers = new();
+				    private Godot.Collections.Array&lt;int&gt; _numbers = new();
 
 				    public override Godot.Collections.Array&lt;Godot.Collections.Dictionary&gt; _GetPropertyList()
 				    {
@@ -173,7 +173,7 @@
 				        if (propertyName.StartsWith("number_"))
 				        {
 				            int index = int.Parse(propertyName.Substring("number_".Length));
-				            numbers[index] = value.As&lt;int&gt;();
+				            _numbers[index] = value.As&lt;int&gt;();
 				            return true;
 				        }
 				        return false;
@@ -341,7 +341,7 @@
 
 				    public override void _ValidateProperty(Godot.Collections.Dictionary property)
 				    {
-				        if (property["name"].AsStringName() == PropertyName.Number &amp;&amp; IsNumberEditable)
+				        if (property["name"].AsStringName() == PropertyName.Number &amp;&amp; !IsNumberEditable)
 				        {
 				            var usage = property["usage"].As&lt;PropertyUsageFlags&gt;() | PropertyUsageFlags.ReadOnly;
 				            property["usage"] = (int)usage;
@@ -693,6 +693,7 @@
 			<return type="int" />
 			<description>
 				Returns the object's unique instance ID. This ID can be saved in [EncodedObjectAsID], and can be used to retrieve this object instance with [method @GlobalScope.instance_from_id].
+				[b]Note:[/b] This ID is only useful during the current session. It won't correspond to a similar object if the ID is sent over a network, or loaded from a file at a later time.
 			</description>
 		</method>
 		<method name="get_meta" qualifiers="const">
@@ -1034,6 +1035,7 @@
 				Translates a [param message], using the translation catalogs configured in the Project Settings. Further [param context] can be specified to help with the translation. Note that most [Control] nodes automatically translate their strings, so this method is mostly useful for formatted strings or custom drawn text.
 				If [method can_translate_messages] is [code]false[/code], or no translation is available, this method returns the [param message] without changes. See [method set_message_translation].
 				For detailed examples, see [url=$DOCS_URL/tutorials/i18n/internationalizing_games.html]Internationalizing games[/url].
+				[b]Note:[/b] This method can't be used without an [Object] instance, as it requires the [method can_translate_messages] method. To translate strings in a static context, use [method TranslationServer.translate].
 			</description>
 		</method>
 		<method name="tr_n" qualifiers="const">
@@ -1048,6 +1050,7 @@
 				The [param n] is the number, or amount, of the message's subject. It is used by the translation system to fetch the correct plural form for the current language.
 				For detailed examples, see [url=$DOCS_URL/tutorials/i18n/localization_using_gettext.html]Localization using gettext[/url].
 				[b]Note:[/b] Negative and [float] numbers may not properly apply to some countable subjects. It's recommended to handle these cases with [method tr].
+				[b]Note:[/b] This method can't be used without an [Object] instance, as it requires the [method can_translate_messages] method. To translate strings in a static context, use [method TranslationServer.translate_plural].
 			</description>
 		</method>
 	</methods>

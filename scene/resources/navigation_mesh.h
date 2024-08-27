@@ -31,16 +31,15 @@
 #ifndef NAVIGATION_MESH_H
 #define NAVIGATION_MESH_H
 
+#include "core/os/rw_lock.h"
 #include "scene/resources/mesh.h"
 
 class NavigationMesh : public Resource {
 	GDCLASS(NavigationMesh, Resource);
+	RWLock rwlock;
 
 	Vector<Vector3> vertices;
-	struct Polygon {
-		Vector<int> indices;
-	};
-	Vector<Polygon> polygons;
+	Vector<Vector<int>> polygons;
 	Ref<ArrayMesh> debug_mesh;
 
 protected:
@@ -94,7 +93,7 @@ protected:
 	float detail_sample_max_error = 1.0f;
 
 	SamplePartitionType partition_type = SAMPLE_PARTITION_WATERSHED;
-	ParsedGeometryType parsed_geometry_type = PARSED_GEOMETRY_MESH_INSTANCES;
+	ParsedGeometryType parsed_geometry_type = PARSED_GEOMETRY_BOTH;
 	uint32_t collision_mask = 0xFFFFFFFF;
 
 	SourceGeometryMode source_geometry_mode = SOURCE_GEOMETRY_ROOT_NODE_CHILDREN;
@@ -192,8 +191,13 @@ public:
 	int get_polygon_count() const;
 	Vector<int> get_polygon(int p_idx);
 	void clear_polygons();
+	void set_polygons(const Vector<Vector<int>> &p_polygons);
+	Vector<Vector<int>> get_polygons() const;
 
 	void clear();
+
+	void set_data(const Vector<Vector3> &p_vertices, const Vector<Vector<int>> &p_polygons);
+	void get_data(Vector<Vector3> &r_vertices, Vector<Vector<int>> &r_polygons);
 
 #ifdef DEBUG_ENABLED
 	Ref<ArrayMesh> get_debug_mesh();

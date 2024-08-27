@@ -1,8 +1,8 @@
 import os
 import sys
-from methods import print_error, detect_darwin_sdk_path
-
 from typing import TYPE_CHECKING
+
+from methods import detect_darwin_sdk_path, print_error
 
 if TYPE_CHECKING:
     from SCons.Script.SConscript import SConsEnvironment
@@ -47,13 +47,14 @@ def get_doc_path():
 
 
 def get_flags():
-    return [
-        ("arch", "arm64"),  # Default for convenience.
-        ("target", "template_debug"),
-        ("use_volk", False),
-        ("supported", ["mono"]),
-        ("builtin_pcre2_with_jit", False),
-    ]
+    return {
+        "arch": "arm64",
+        "target": "template_debug",
+        "use_volk": False,
+        "metal": True,
+        "supported": ["metal", "mono"],
+        "builtin_pcre2_with_jit": False,
+    }
 
 
 def configure(env: "SConsEnvironment"):
@@ -154,8 +155,22 @@ def configure(env: "SConsEnvironment"):
     env.Prepend(CPPPATH=["#platform/ios"])
     env.Append(CPPDEFINES=["IOS_ENABLED", "UNIX_ENABLED", "COREAUDIO_ENABLED"])
 
+    if env["metal"] and env["arch"] != "arm64":
+        # Only supported on arm64, so skip it for x86_64 builds.
+        env["metal"] = False
+
+    if env["metal"]:
+        env.AppendUnique(CPPDEFINES=["METAL_ENABLED", "RD_ENABLED"])
+        env.Prepend(
+            CPPPATH=[
+                "$IOS_SDK_PATH/System/Library/Frameworks/Metal.framework/Headers",
+                "$IOS_SDK_PATH/System/Library/Frameworks/QuartzCore.framework/Headers",
+            ]
+        )
+        env.Prepend(CPPPATH=["#thirdparty/spirv-cross"])
+
     if env["vulkan"]:
-        env.Append(CPPDEFINES=["VULKAN_ENABLED", "RD_ENABLED"])
+        env.AppendUnique(CPPDEFINES=["VULKAN_ENABLED", "RD_ENABLED"])
 
     if env["opengl3"]:
         env.Append(CPPDEFINES=["GLES3_ENABLED", "GLES_SILENCE_DEPRECATION"])
