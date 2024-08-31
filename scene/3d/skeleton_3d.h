@@ -124,30 +124,6 @@ private:
 #endif // _DISABLE_DEPRECATED
 	};
 
-	struct BonePoseBackup {
-		Transform3D pose_cache;
-		Vector3 pose_position;
-		Quaternion pose_rotation;
-		Vector3 pose_scale = Vector3(1, 1, 1);
-		Transform3D global_pose;
-
-		void save(const Bone &p_bone) {
-			pose_cache = p_bone.pose_cache;
-			pose_position = p_bone.pose_position;
-			pose_rotation = p_bone.pose_rotation;
-			pose_scale = p_bone.pose_scale;
-			global_pose = p_bone.global_pose;
-		}
-
-		void restore(Bone &r_bone) {
-			r_bone.pose_cache = pose_cache;
-			r_bone.pose_position = pose_position;
-			r_bone.pose_rotation = pose_rotation;
-			r_bone.pose_scale = pose_scale;
-			r_bone.global_pose = global_pose;
-		}
-	};
-
 	HashSet<SkinReference *> skin_bindings;
 	void _skin_changed();
 
@@ -179,7 +155,6 @@ private:
 	void _process_modifiers();
 	void _process_changed();
 	void _make_modifiers_dirty();
-	LocalVector<BonePoseBackup> bones_backup;
 
 #ifndef DISABLE_DEPRECATED
 	void _add_bone_bind_compat_88791(const String &p_name);

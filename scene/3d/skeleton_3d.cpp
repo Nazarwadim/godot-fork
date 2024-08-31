@@ -263,8 +263,6 @@ void Skeleton3D::_update_process_order() {
 		}
 	}
 
-	bones_backup.resize(bones.size());
-
 	concatenated_bone_names = StringName();
 
 	process_order_dirty = false;
@@ -328,10 +326,6 @@ void Skeleton3D::_notification(int p_what) {
 			// Process modifiers.
 			_find_modifiers();
 			if (!modifiers.is_empty()) {
-				// Store unmodified bone poses.
-				for (int i = 0; i < bones.size(); i++) {
-					bones_backup[i].save(bones[i]);
-				}
 				_process_modifiers();
 			}
 
@@ -398,13 +392,6 @@ void Skeleton3D::_notification(int p_what) {
 					uint32_t bone_index = E->skin_bone_indices_ptrs[i];
 					ERR_CONTINUE(bone_index >= (uint32_t)len);
 					rs->skeleton_bone_set_transform(skeleton, i, bonesptr[bone_index].global_pose * skin->get_bind_pose(i));
-				}
-			}
-
-			if (!modifiers.is_empty()) {
-				// Restore unmodified bone poses.
-				for (int i = 0; i < bones.size(); i++) {
-					bones_backup[i].restore(bones.write[i]);
 				}
 			}
 
