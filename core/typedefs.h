@@ -54,10 +54,9 @@ static_assert(__cplusplus >= 201703L);
 #define _MKSTR(m_x) _STR(m_x)
 #endif
 
-// Should always inline no matter what. // TODO fix comment if I will deside to make PR!!!!!!!!!!
+// Should always inline no matter what. TODO fix comment if I will deside to make PR!!!!!!!!!!
 #define _ALWAYS_INLINE_ inline
 #define _FORCE_INLINE_ _ALWAYS_INLINE_
-
 
 // In some cases [[nodiscard]] will get false positives,
 // we can prevent the warning in specific cases by preceding the call with a cast.
