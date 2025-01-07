@@ -50,10 +50,11 @@ public:
 		Vector3 tangent;
 		Vector2 uv;
 		Vector2 uv2;
-		Vector<int> bones;
-		Vector<float> weights;
 		Color custom[RS::ARRAY_CUSTOM_COUNT];
 		uint32_t smooth_group = 0;
+
+		Vector<int> bones;
+		Vector<float> weights;
 
 		bool operator==(const Vertex &p_vertex) const;
 
