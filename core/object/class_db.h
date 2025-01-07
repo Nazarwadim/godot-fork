@@ -114,8 +114,8 @@ public:
 			bool is_bitfield = false;
 		};
 
-		AHashMap<StringName, EnumInfo> enum_map;
-		AHashMap<StringName, MethodInfo> signal_map;
+		HashMap<StringName, EnumInfo> enum_map;
+		HashMap<StringName, MethodInfo> signal_map;
 		List<PropertyInfo> property_list;
 		AHashMap<StringName, PropertyInfo> property_map;
 #ifdef DEBUG_METHODS_ENABLED

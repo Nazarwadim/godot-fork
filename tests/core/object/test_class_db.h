@@ -721,7 +721,7 @@ void add_exposed_classes(Context &r_context) {
 
 		// Add signals
 
-		const AHashMap<StringName, MethodInfo> &signal_map = class_info->signal_map;
+		const HashMap<StringName, MethodInfo> &signal_map = class_info->signal_map;
 
 		for (const KeyValue<StringName, MethodInfo> &K : signal_map) {
 			SignalData signal;
@@ -775,7 +775,7 @@ void add_exposed_classes(Context &r_context) {
 		List<String> constants;
 		ClassDB::get_integer_constant_list(class_name, &constants, true);
 
-		const AHashMap<StringName, ClassDB::ClassInfo::EnumInfo> &enum_map = class_info->enum_map;
+		const HashMap<StringName, ClassDB::ClassInfo::EnumInfo> &enum_map = class_info->enum_map;
 
 		for (const KeyValue<StringName, ClassDB::ClassInfo::EnumInfo> &K : enum_map) {
 			EnumData enum_;
