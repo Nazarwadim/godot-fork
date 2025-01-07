@@ -96,7 +96,7 @@ protected:
 		RID sampler;
 	} blit;
 
-	HashMap<RID, RID> render_target_descriptors;
+	AHashMap<RID, RID> render_target_descriptors;
 
 	double time = 0.0;
 	double delta = 0.0;

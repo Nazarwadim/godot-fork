@@ -234,7 +234,7 @@ class RendererCanvasRenderRD : public RendererCanvasRender {
 	};
 
 	struct {
-		HashMap<PolygonID, PolygonBuffers> polygons;
+		AHashMap<PolygonID, PolygonBuffers> polygons;
 		PolygonID last_id;
 	} polygon_buffers;
 
@@ -521,7 +521,7 @@ class RendererCanvasRenderRD : public RendererCanvasRender {
 		uint32_t flags = 0;
 	};
 
-	HashMap<TextureState, TextureInfo, HashableHasher<TextureState>> texture_info_map;
+	AHashMap<TextureState, TextureInfo, HashableHasher<TextureState>> texture_info_map;
 
 	// per-frame buffers
 	struct DataBuffer {

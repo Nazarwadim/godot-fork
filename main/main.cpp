@@ -4355,6 +4355,11 @@ static uint64_t navigation_process_max = 0;
 // Return false means iterating further, returning true means `OS::run`
 // will terminate the program. In case of failure, the OS exit code needs
 // to be set explicitly here (defaults to EXIT_SUCCESS).
+
+static double PRINT_STATISTICS_TIME = 5;
+double time_left = 5.0;
+#include "core/templates/analitycs.h"
+
 bool Main::iteration() {
 	iterating++;
 
@@ -4392,6 +4397,12 @@ bool Main::iteration() {
 	}
 
 	bool exit = false;
+
+	time_left -= process_step * time_scale;
+	if(time_left < 0) {
+		time_left = PRINT_STATISTICS_TIME;
+		print_analitycs();
+	}
 
 	// process all our active interfaces
 #ifndef _3D_DISABLED

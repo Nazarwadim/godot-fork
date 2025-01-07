@@ -261,7 +261,7 @@ private:
 			}
 		};
 
-		HashMap<RID, Texture> textures;
+		AHashMap<RID, Texture> textures;
 		bool dirty = true;
 		int mipmaps = 5;
 
@@ -422,7 +422,7 @@ private:
 				}
 			};
 
-			mutable HashMap<SliceKey, RID, SliceKey> cached_slices;
+			mutable AHashMap<SliceKey, RID, SliceKey> cached_slices;
 		} overridden;
 
 		//texture generated for this owner (nor RD).

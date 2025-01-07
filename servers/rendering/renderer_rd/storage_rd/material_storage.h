@@ -110,7 +110,7 @@ public:
 		List<RID>::Element *global_buffer_E = nullptr;
 		List<RID>::Element *global_texture_E = nullptr;
 		uint64_t global_textures_pass = 0;
-		HashMap<StringName, uint64_t> used_global_textures;
+		AHashMap<StringName, uint64_t> used_global_textures;
 
 		//internally by update_parameters_uniform_set
 		Vector<uint8_t> ubo_data[2]; // 0: linear buffer; 1: sRGB buffer.

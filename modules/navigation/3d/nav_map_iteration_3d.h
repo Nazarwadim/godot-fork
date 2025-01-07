@@ -52,7 +52,7 @@ struct NavMapIterationBuild {
 	int polygon_count = 0;
 	int free_edge_count = 0;
 
-	HashMap<gd::EdgeKey, gd::EdgeConnectionPair, gd::EdgeKey> iter_connection_pairs_map;
+	AHashMap<gd::EdgeKey, gd::EdgeConnectionPair, gd::EdgeKey> iter_connection_pairs_map;
 	LocalVector<gd::Edge::Connection> iter_free_edges;
 
 	NavMapIteration *map_iteration = nullptr;

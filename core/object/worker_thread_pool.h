@@ -144,7 +144,7 @@ private:
 	} runlevel_data;
 	ConditionVariable control_cond_var;
 
-	HashMap<Thread::ID, int> thread_ids;
+	AHashMap<Thread::ID, int> thread_ids;
 	HashMap<
 			TaskID,
 			Task *,

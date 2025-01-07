@@ -206,7 +206,7 @@ public:
 		uint32_t height = 0;
 		LocalVector<RDD::TextureID> textures;
 		LocalVector<ResourceTracker *> trackers;
-		HashMap<uint64_t, FramebufferStorage> storage_map;
+		AHashMap<uint64_t, FramebufferStorage> storage_map;
 		void *render_pass_creation_user_data = nullptr;
 	};
 

@@ -1950,7 +1950,7 @@ void BaseMaterial3D::_check_material_rid() {
 
 		_set_material(RS::get_singleton()->material_create_from_shader(next_pass_rid, get_render_priority(), shader_rid));
 
-		for (KeyValue<StringName, Variant> param : pending_params) {
+		for (const KeyValue<StringName, Variant> &param : pending_params) {
 			RS::get_singleton()->material_set_param(_get_material(), param.key, param.value);
 		}
 

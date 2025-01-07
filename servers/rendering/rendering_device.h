@@ -34,6 +34,7 @@
 #include "core/object/worker_thread_pool.h"
 #include "core/os/condition_variable.h"
 #include "core/os/thread_safe.h"
+#include "core/templates/a_hash_map.h"
 #include "core/templates/local_vector.h"
 #include "core/templates/rid_owner.h"
 #include "core/variant/typed_array.h"
@@ -122,8 +123,8 @@ public:
 	};
 
 private:
-	HashMap<RID, HashSet<RID>> dependency_map; // IDs to IDs that depend on it.
-	HashMap<RID, HashSet<RID>> reverse_dependency_map; // Same as above, but in reverse.
+	AHashMap<RID, HashSet<RID>> dependency_map; // IDs to IDs that depend on it.
+	AHashMap<RID, HashSet<RID>> reverse_dependency_map; // Same as above, but in reverse.
 
 	void _add_dependency(RID p_id, RID p_depends_on);
 	void _free_dependencies(RID p_id);
@@ -543,7 +544,7 @@ private:
 		uint32_t view_count = 1; // Number of views.
 	};
 
-	HashMap<FramebufferFormatID, FramebufferFormat> framebuffer_formats;
+	AHashMap<FramebufferFormatID, FramebufferFormat> framebuffer_formats;
 
 	struct Framebuffer {
 		RenderingDevice *rendering_device = nullptr;
@@ -663,7 +664,7 @@ private:
 
 	// This is a cache and it's never freed, it ensures that
 	// ID used for a specific format always remain the same.
-	HashMap<VertexDescriptionKey, VertexFormatID, VertexDescriptionHash> vertex_format_cache;
+	AHashMap<VertexDescriptionKey, VertexFormatID, VertexDescriptionHash> vertex_format_cache;
 
 	struct VertexDescriptionCache {
 		Vector<VertexAttribute> vertex_formats;
@@ -790,7 +791,7 @@ private:
 
 #ifndef DISABLE_DEPRECATED
 public:
-	enum BarrierMask {
+	enum BarrierMask{
 		BARRIER_MASK_VERTEX = 1,
 		BARRIER_MASK_FRAGMENT = 8,
 		BARRIER_MASK_COMPUTE = 2,
@@ -801,7 +802,7 @@ public:
 		BARRIER_MASK_NO_BARRIER = 0x8000,
 	};
 
-	enum InitialAction {
+	enum InitialAction{
 		INITIAL_ACTION_LOAD,
 		INITIAL_ACTION_CLEAR,
 		INITIAL_ACTION_DISCARD,
@@ -813,7 +814,7 @@ public:
 		INITIAL_ACTION_CONTINUE = INITIAL_ACTION_LOAD,
 	};
 
-	enum FinalAction {
+	enum FinalAction{
 		FINAL_ACTION_STORE,
 		FINAL_ACTION_DISCARD,
 		FINAL_ACTION_MAX,
@@ -994,7 +995,7 @@ private:
 		LocalVector<AttachableTexture> attachable_textures; // Used for validation.
 		Vector<RDG::ResourceTracker *> draw_trackers;
 		Vector<RDG::ResourceUsage> draw_trackers_usage;
-		HashMap<RID, RDG::ResourceUsage> untracked_usage;
+		AHashMap<RID, RDG::ResourceUsage> untracked_usage;
 		LocalVector<SharedTexture> shared_textures_to_update;
 		InvalidationCallback invalidated_callback = nullptr;
 		void *invalidated_callback_userdata = nullptr;
@@ -1094,8 +1095,8 @@ private:
 	/****************/
 	/**** SCREEN ****/
 	/****************/
-	HashMap<DisplayServer::WindowID, RDD::SwapChainID> screen_swap_chains;
-	HashMap<DisplayServer::WindowID, RDD::FramebufferID> screen_framebuffers;
+	AHashMap<DisplayServer::WindowID, RDD::SwapChainID> screen_swap_chains;
+	AHashMap<DisplayServer::WindowID, RDD::FramebufferID> screen_framebuffers;
 
 	uint32_t _get_swap_chain_desired_count() const;
 

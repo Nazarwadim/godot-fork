@@ -2428,7 +2428,7 @@ void RendererCanvasRenderRD::_record_item_commands(const Item *p_item, RenderTar
 				TextureState tex_state(rect->texture, texture_filter, rect_repeat, has_msdf, use_linear_colors);
 				TextureInfo *tex_info = texture_info_map.getptr(tex_state);
 				if (!tex_info) {
-					tex_info = &texture_info_map.insert(tex_state, TextureInfo())->value;
+					tex_info = &texture_info_map.insert_new(tex_state, TextureInfo())->value;
 					_prepare_batch_texture_info(rect->texture, tex_state, tex_info);
 				}
 
@@ -2529,7 +2529,7 @@ void RendererCanvasRenderRD::_record_item_commands(const Item *p_item, RenderTar
 				TextureState tex_state(np->texture, texture_filter, texture_repeat, false, use_linear_colors);
 				TextureInfo *tex_info = texture_info_map.getptr(tex_state);
 				if (!tex_info) {
-					tex_info = &texture_info_map.insert(tex_state, TextureInfo())->value;
+					tex_info = &texture_info_map.insert_new(tex_state, TextureInfo())->value;
 					_prepare_batch_texture_info(np->texture, tex_state, tex_info);
 				}
 
@@ -2604,7 +2604,7 @@ void RendererCanvasRenderRD::_record_item_commands(const Item *p_item, RenderTar
 				TextureState tex_state(polygon->texture, texture_filter, texture_repeat, false, use_linear_colors);
 				TextureInfo *tex_info = texture_info_map.getptr(tex_state);
 				if (!tex_info) {
-					tex_info = &texture_info_map.insert(tex_state, TextureInfo())->value;
+					tex_info = &texture_info_map.insert_new(tex_state, TextureInfo())->value;
 					_prepare_batch_texture_info(polygon->texture, tex_state, tex_info);
 				}
 
@@ -2671,7 +2671,7 @@ void RendererCanvasRenderRD::_record_item_commands(const Item *p_item, RenderTar
 				TextureState tex_state(primitive->texture, texture_filter, texture_repeat, false, use_linear_colors);
 				TextureInfo *tex_info = texture_info_map.getptr(tex_state);
 				if (!tex_info) {
-					tex_info = &texture_info_map.insert(tex_state, TextureInfo())->value;
+					tex_info = &texture_info_map.insert_new(tex_state, TextureInfo())->value;
 					_prepare_batch_texture_info(primitive->texture, tex_state, tex_info);
 				}
 
@@ -2737,7 +2737,7 @@ void RendererCanvasRenderRD::_record_item_commands(const Item *p_item, RenderTar
 					TextureState tex_state(m->texture, texture_filter, texture_repeat, false, use_linear_colors);
 					TextureInfo *tex_info = texture_info_map.getptr(tex_state);
 					if (!tex_info) {
-						tex_info = &texture_info_map.insert(tex_state, TextureInfo())->value;
+						tex_info = &texture_info_map.insert_new(tex_state, TextureInfo())->value;
 						_prepare_batch_texture_info(m->texture, tex_state, tex_info);
 					}
 					r_current_batch->tex_info = tex_info;
@@ -2764,7 +2764,7 @@ void RendererCanvasRenderRD::_record_item_commands(const Item *p_item, RenderTar
 					TextureState tex_state(mm->texture, texture_filter, texture_repeat, false, use_linear_colors);
 					TextureInfo *tex_info = texture_info_map.getptr(tex_state);
 					if (!tex_info) {
-						tex_info = &texture_info_map.insert(tex_state, TextureInfo())->value;
+						tex_info = &texture_info_map.insert_new(tex_state, TextureInfo())->value;
 						_prepare_batch_texture_info(mm->texture, tex_state, tex_info);
 					}
 					r_current_batch->tex_info = tex_info;
@@ -2786,7 +2786,7 @@ void RendererCanvasRenderRD::_record_item_commands(const Item *p_item, RenderTar
 					TextureState tex_state(pt->texture, texture_filter, texture_repeat, false, use_linear_colors);
 					TextureInfo *tex_info = texture_info_map.getptr(tex_state);
 					if (!tex_info) {
-						tex_info = &texture_info_map.insert(tex_state, TextureInfo())->value;
+						tex_info = &texture_info_map.insert_new(tex_state, TextureInfo())->value;
 						_prepare_batch_texture_info(pt->texture, tex_state, tex_info);
 					}
 					r_current_batch->tex_info = tex_info;

@@ -153,7 +153,7 @@ public:
 
 		Transform2D global_transform;
 
-		HashMap<RID, CanvasData> canvas_map;
+		AHashMap<RID, CanvasData> canvas_map;
 
 		RenderingMethod::RenderInfo render_info;
 

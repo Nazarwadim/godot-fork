@@ -798,7 +798,7 @@ _FORCE_INLINE_ bool TextServerFallback::_ensure_glyph(FontFallback *p_font_data,
 _FORCE_INLINE_ bool TextServerFallback::_ensure_cache_for_size(FontFallback *p_font_data, const Vector2i &p_size, FontForSizeFallback *&r_cache_for_size, bool p_silent) const {
 	ERR_FAIL_COND_V(p_size.x <= 0, false);
 
-	HashMap<Vector2i, FontForSizeFallback *>::Iterator E = p_font_data->cache.find(p_size);
+	AHashMap<Vector2i, FontForSizeFallback *>::Iterator E = p_font_data->cache.find(p_size);
 	if (E) {
 		r_cache_for_size = E->value;
 		return true;

@@ -2535,7 +2535,7 @@ bool RendererCanvasCull::free(RID p_rid) {
 			RendererViewport::Viewport *vp = RSG::viewport->viewport_owner.get_or_null(*canvas->viewports.begin());
 			ERR_FAIL_NULL_V(vp, true);
 
-			HashMap<RID, RendererViewport::Viewport::CanvasData>::Iterator E = vp->canvas_map.find(p_rid);
+			AHashMap<RID, RendererViewport::Viewport::CanvasData>::Iterator E = vp->canvas_map.find(p_rid);
 			ERR_FAIL_COND_V(!E, true);
 			vp->canvas_map.erase(p_rid);
 

@@ -120,7 +120,7 @@ void NavMapBuilder3D::_build_step_find_edge_connection_pairs(NavMapIterationBuil
 	NavMapIteration *map_iteration = r_build.map_iteration;
 
 	LocalVector<gd::Polygon> &polygons = map_iteration->navmesh_polygons;
-	HashMap<gd::EdgeKey, gd::EdgeConnectionPair, gd::EdgeKey> &connection_pairs_map = r_build.iter_connection_pairs_map;
+	AHashMap<gd::EdgeKey, gd::EdgeConnectionPair, gd::EdgeKey> &connection_pairs_map = r_build.iter_connection_pairs_map;
 
 	// Group all edges per key.
 	connection_pairs_map.clear();
@@ -132,9 +132,9 @@ void NavMapBuilder3D::_build_step_find_edge_connection_pairs(NavMapIterationBuil
 			const int next_point = (p + 1) % poly.points.size();
 			const gd::EdgeKey ek(poly.points[p].key, poly.points[next_point].key);
 
-			HashMap<gd::EdgeKey, gd::EdgeConnectionPair, gd::EdgeKey>::Iterator pair_it = connection_pairs_map.find(ek);
+			AHashMap<gd::EdgeKey, gd::EdgeConnectionPair, gd::EdgeKey>::Iterator pair_it = connection_pairs_map.find(ek);
 			if (!pair_it) {
-				pair_it = connection_pairs_map.insert(ek, gd::EdgeConnectionPair());
+				pair_it = connection_pairs_map.insert_new(ek, gd::EdgeConnectionPair());
 				performance_data.pm_edge_count += 1;
 				++free_edges_count;
 			}
@@ -166,7 +166,7 @@ void NavMapBuilder3D::_build_step_find_edge_connection_pairs(NavMapIterationBuil
 void NavMapBuilder3D::_build_step_merge_edge_connection_pairs(NavMapIterationBuild &r_build) {
 	gd::PerformanceData &performance_data = r_build.performance_data;
 
-	HashMap<gd::EdgeKey, gd::EdgeConnectionPair, gd::EdgeKey> &connection_pairs_map = r_build.iter_connection_pairs_map;
+	AHashMap<gd::EdgeKey, gd::EdgeConnectionPair, gd::EdgeKey> &connection_pairs_map = r_build.iter_connection_pairs_map;
 	LocalVector<gd::Edge::Connection> &free_edges = r_build.iter_free_edges;
 	int free_edges_count = r_build.free_edge_count;
 	bool use_edge_connections = r_build.use_edge_connections;

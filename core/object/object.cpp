@@ -2131,10 +2131,9 @@ Object::~Object() {
 	}
 
 	// Drop all connections to the signals of this object.
-	while (signal_map.size()) {
+	for(const KeyValue<StringName, SignalData> &E : signal_map) {
 		// Avoid regular iteration so erasing is safe.
-		KeyValue<StringName, SignalData> &E = *signal_map.begin();
-		SignalData *s = &E.value;
+		const SignalData *s = &E.value;
 
 		for (const KeyValue<Callable, SignalData::Slot> &slot_kv : s->slot_map) {
 			Object *target = slot_kv.value.conn.callable.get_object();
@@ -2142,9 +2141,9 @@ Object::~Object() {
 				target->connections.erase(slot_kv.value.cE);
 			}
 		}
-
-		signal_map.erase(E.key);
 	}
+
+	signal_map.reset();
 
 	// Disconnect signals that connect to this object.
 	while (connections.size()) {

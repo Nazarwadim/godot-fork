@@ -793,7 +793,7 @@ void RenderingDeviceGraph::_get_draw_list_render_pass_and_framebuffer(const Reco
 
 	// Check the storage map if the render pass and the framebuffer needs to be created.
 	FramebufferCache *framebuffer_cache = p_draw_list_command->framebuffer_cache;
-	HashMap<uint64_t, FramebufferStorage>::Iterator it = framebuffer_cache->storage_map.find(key);
+	AHashMap<uint64_t, FramebufferStorage>::Iterator it = framebuffer_cache->storage_map.find(key);
 	if (it == framebuffer_cache->storage_map.end()) {
 		FramebufferStorage storage;
 		VectorView<RDD::AttachmentLoadOp> load_ops_view(load_ops, p_draw_list_command->trackers_count);
@@ -804,7 +804,7 @@ void RenderingDeviceGraph::_get_draw_list_render_pass_and_framebuffer(const Reco
 		storage.framebuffer = driver->framebuffer_create(storage.render_pass, framebuffer_cache->textures, framebuffer_cache->width, framebuffer_cache->height);
 		ERR_FAIL_COND(!storage.framebuffer);
 
-		it = framebuffer_cache->storage_map.insert(key, storage);
+		it = framebuffer_cache->storage_map.insert_new(key, storage);
 	}
 
 	r_render_pass = it->value.render_pass;

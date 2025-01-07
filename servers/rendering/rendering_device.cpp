@@ -151,13 +151,13 @@ void RenderingDevice::_add_dependency(RID p_id, RID p_depends_on) {
 
 	HashSet<RID> *set = dependency_map.getptr(p_depends_on);
 	if (set == nullptr) {
-		set = &dependency_map.insert(p_depends_on, HashSet<RID>())->value;
+		set = &dependency_map.insert_new(p_depends_on, HashSet<RID>())->value;
 	}
 	set->insert(p_id);
 
 	set = reverse_dependency_map.getptr(p_id);
 	if (set == nullptr) {
-		set = &reverse_dependency_map.insert(p_id, HashSet<RID>())->value;
+		set = &reverse_dependency_map.insert_new(p_id, HashSet<RID>())->value;
 	}
 	set->insert(p_depends_on);
 }
@@ -167,12 +167,21 @@ void RenderingDevice::_free_dependencies(RID p_id) {
 
 	// Direct dependencies must be freed.
 
-	HashMap<RID, HashSet<RID>>::Iterator E = dependency_map.find(p_id);
+	AHashMap<RID, HashSet<RID>>::Iterator E = dependency_map.find(p_id);
 	if (E) {
-		while (E->value.size()) {
+		if (E->value.size() == 1) {
 			free(*E->value.begin());
+		} else {
+			while (true) {
+				E = dependency_map.find(p_id); // AHashMap doesn`t have stable iterator.
+				if (E->value.size() == 0) {
+					break;
+				}
+				free(*E->value.begin());
+			}
 		}
-		dependency_map.remove(E);
+
+		dependency_map.erase(p_id);
 	}
 
 	// Reverse dependencies must be unreferenced.
@@ -180,7 +189,7 @@ void RenderingDevice::_free_dependencies(RID p_id) {
 
 	if (E) {
 		for (const RID &F : E->value) {
-			HashMap<RID, HashSet<RID>>::Iterator G = dependency_map.find(F);
+			AHashMap<RID, HashSet<RID>>::Iterator G = dependency_map.find(F);
 			ERR_CONTINUE(!G);
 			ERR_CONTINUE(!G->value.has(p_id));
 			G->value.erase(p_id);
@@ -2691,7 +2700,7 @@ RenderingDevice::FramebufferFormatID RenderingDevice::framebuffer_format_create_
 RenderingDevice::TextureSamples RenderingDevice::framebuffer_format_get_texture_samples(FramebufferFormatID p_format, uint32_t p_pass) {
 	_THREAD_SAFE_METHOD_
 
-	HashMap<FramebufferFormatID, FramebufferFormat>::Iterator E = framebuffer_formats.find(p_format);
+	AHashMap<FramebufferFormatID, FramebufferFormat>::Iterator E = framebuffer_formats.find(p_format);
 	ERR_FAIL_COND_V(!E, TEXTURE_SAMPLES_1);
 	ERR_FAIL_COND_V(p_pass >= uint32_t(E->value.pass_samples.size()), TEXTURE_SAMPLES_1);
 
@@ -3366,7 +3375,7 @@ RID RenderingDevice::uniform_set_create(const Collection &p_uniforms, RID p_shad
 	LocalVector<UniformSet::AttachableTexture> attachable_textures;
 	Vector<RDG::ResourceTracker *> draw_trackers;
 	Vector<RDG::ResourceUsage> draw_trackers_usage;
-	HashMap<RID, RDG::ResourceUsage> untracked_usage;
+	AHashMap<RID, RDG::ResourceUsage> untracked_usage;
 	Vector<UniformSet::SharedTexture> shared_textures_to_update;
 
 	for (uint32_t i = 0; i < set_uniform_count; i++) {
@@ -4023,7 +4032,7 @@ Error RenderingDevice::screen_create(DisplayServer::WindowID p_screen) {
 	RenderingContextDriver::SurfaceID surface = context->surface_get_from_window(p_screen);
 	ERR_FAIL_COND_V_MSG(surface == 0, ERR_CANT_CREATE, "A surface was not created for the screen.");
 
-	HashMap<DisplayServer::WindowID, RDD::SwapChainID>::ConstIterator it = screen_swap_chains.find(p_screen);
+	AHashMap<DisplayServer::WindowID, RDD::SwapChainID>::ConstIterator it = screen_swap_chains.find(p_screen);
 	ERR_FAIL_COND_V_MSG(it != screen_swap_chains.end(), ERR_CANT_CREATE, "A swap chain was already created for the screen.");
 
 	RDD::SwapChainID swap_chain = driver->swap_chain_create(surface);
@@ -4038,7 +4047,7 @@ Error RenderingDevice::screen_prepare_for_drawing(DisplayServer::WindowID p_scre
 	_THREAD_SAFE_METHOD_
 
 	// After submitting work, acquire the swapchain image(s).
-	HashMap<DisplayServer::WindowID, RDD::SwapChainID>::ConstIterator it = screen_swap_chains.find(p_screen);
+	AHashMap<DisplayServer::WindowID, RDD::SwapChainID>::ConstIterator it = screen_swap_chains.find(p_screen);
 	ERR_FAIL_COND_V_MSG(it == screen_swap_chains.end(), ERR_CANT_CREATE, "A swap chain was not created for the screen.");
 
 	// Erase the framebuffer corresponding to this screen from the map in case any of the operations fail.
@@ -4103,7 +4112,7 @@ int RenderingDevice::screen_get_height(DisplayServer::WindowID p_screen) const {
 int RenderingDevice::screen_get_pre_rotation_degrees(DisplayServer::WindowID p_screen) const {
 	_THREAD_SAFE_METHOD_
 
-	HashMap<DisplayServer::WindowID, RDD::SwapChainID>::ConstIterator it = screen_swap_chains.find(p_screen);
+	AHashMap<DisplayServer::WindowID, RDD::SwapChainID>::ConstIterator it = screen_swap_chains.find(p_screen);
 	ERR_FAIL_COND_V_MSG(it == screen_swap_chains.end(), ERR_CANT_CREATE, "A swap chain was not created for the screen.");
 
 	return driver->swap_chain_get_pre_rotation_degrees(it->value);
@@ -4112,7 +4121,7 @@ int RenderingDevice::screen_get_pre_rotation_degrees(DisplayServer::WindowID p_s
 RenderingDevice::FramebufferFormatID RenderingDevice::screen_get_framebuffer_format(DisplayServer::WindowID p_screen) const {
 	_THREAD_SAFE_METHOD_
 
-	HashMap<DisplayServer::WindowID, RDD::SwapChainID>::ConstIterator it = screen_swap_chains.find(p_screen);
+	AHashMap<DisplayServer::WindowID, RDD::SwapChainID>::ConstIterator it = screen_swap_chains.find(p_screen);
 	ERR_FAIL_COND_V_MSG(it == screen_swap_chains.end(), FAILED, "Screen was never prepared.");
 
 	DataFormat format = driver->swap_chain_get_format(it->value);
@@ -4130,7 +4139,7 @@ RenderingDevice::FramebufferFormatID RenderingDevice::screen_get_framebuffer_for
 Error RenderingDevice::screen_free(DisplayServer::WindowID p_screen) {
 	_THREAD_SAFE_METHOD_
 
-	HashMap<DisplayServer::WindowID, RDD::SwapChainID>::ConstIterator it = screen_swap_chains.find(p_screen);
+	AHashMap<DisplayServer::WindowID, RDD::SwapChainID>::ConstIterator it = screen_swap_chains.find(p_screen);
 	ERR_FAIL_COND_V_MSG(it == screen_swap_chains.end(), FAILED, "Screen was never created.");
 
 	// Flush everything so nothing can be using the swap chain before erasing it.
@@ -4156,8 +4165,8 @@ RenderingDevice::DrawListID RenderingDevice::draw_list_begin_for_screen(DisplayS
 	ERR_FAIL_COND_V_MSG(compute_list != nullptr, INVALID_ID, "Only one draw/compute list can be active at the same time.");
 
 	RenderingContextDriver::SurfaceID surface = context->surface_get_from_window(p_screen);
-	HashMap<DisplayServer::WindowID, RDD::SwapChainID>::ConstIterator sc_it = screen_swap_chains.find(p_screen);
-	HashMap<DisplayServer::WindowID, RDD::FramebufferID>::ConstIterator fb_it = screen_framebuffers.find(p_screen);
+	AHashMap<DisplayServer::WindowID, RDD::SwapChainID>::ConstIterator sc_it = screen_swap_chains.find(p_screen);
+	AHashMap<DisplayServer::WindowID, RDD::FramebufferID>::ConstIterator fb_it = screen_framebuffers.find(p_screen);
 	ERR_FAIL_COND_V_MSG(surface == 0, 0, "A surface was not created for the screen.");
 	ERR_FAIL_COND_V_MSG(sc_it == screen_swap_chains.end(), INVALID_ID, "Screen was never prepared.");
 	ERR_FAIL_COND_V_MSG(fb_it == screen_framebuffers.end(), INVALID_ID, "Framebuffer was never prepared.");
@@ -5856,7 +5865,7 @@ bool RenderingDevice::_index_array_make_mutable(IndexArray *p_index_array, RDG::
 }
 
 bool RenderingDevice::_uniform_set_make_mutable(UniformSet *p_uniform_set, RID p_resource_id, RDG::ResourceTracker *p_resource_tracker) {
-	HashMap<RID, RDG::ResourceUsage>::Iterator E = p_uniform_set->untracked_usage.find(p_resource_id);
+	AHashMap<RID, RDG::ResourceUsage>::Iterator E = p_uniform_set->untracked_usage.find(p_resource_id);
 	if (!E) {
 		// Uniform set thinks the resource is already tracked or does not use it.
 		return false;
@@ -5890,7 +5899,7 @@ bool RenderingDevice::_dependency_make_mutable(RID p_id, RID p_resource_id, RDG:
 
 bool RenderingDevice::_dependencies_make_mutable_recursive(RID p_id, RDG::ResourceTracker *p_resource_tracker) {
 	bool made_mutable = false;
-	HashMap<RID, HashSet<RID>>::Iterator E = dependency_map.find(p_id);
+	AHashMap<RID, HashSet<RID>>::Iterator E = dependency_map.find(p_id);
 	if (E) {
 		for (RID rid : E->value) {
 			made_mutable = _dependency_make_mutable(rid, p_id, p_resource_tracker) || made_mutable;

@@ -151,16 +151,16 @@ private:
 
 		// Our texture objects, slices are lazy (i.e. only created when requested).
 		RID texture;
-		mutable HashMap<NTSliceKey, RID, NTSliceKey> slices;
+		mutable AHashMap<NTSliceKey, RID, NTSliceKey> slices;
 		Vector<Size2i> sizes;
 	};
 
-	mutable HashMap<NTKey, NamedTexture, NTKey> named_textures;
+	mutable AHashMap<NTKey, NamedTexture, NTKey> named_textures;
 	void update_sizes(NamedTexture &p_named_texture);
 	void free_named_texture(NamedTexture &p_named_texture);
 
 	// Data buffers
-	mutable HashMap<StringName, Ref<RenderBufferCustomDataRD>> data_buffers;
+	mutable AHashMap<StringName, Ref<RenderBufferCustomDataRD>> data_buffers;
 
 	// Samplers.
 	RendererRD::MaterialStorage::Samplers samplers;

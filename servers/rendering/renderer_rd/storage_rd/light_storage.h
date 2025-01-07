@@ -411,7 +411,7 @@ private:
 		RID depth;
 		RID fb; //for copying
 
-		HashMap<RID, uint32_t> shadow_owners;
+		AHashMap<RID, uint32_t> shadow_owners;
 	};
 
 	RID_Owner<ShadowAtlas> shadow_atlas_owner;
@@ -441,7 +441,7 @@ private:
 		RID side_fb[6];
 	};
 
-	HashMap<int, ShadowCubemap> shadow_cubemaps;
+	AHashMap<int, ShadowCubemap> shadow_cubemaps;
 	ShadowCubemap *_get_shadow_cubemap(int p_size);
 
 	/* PIPELINE HINTS */

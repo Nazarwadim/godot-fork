@@ -284,7 +284,7 @@ class TextServerFallback : public TextServerExtension {
 		int extra_spacing[4] = { 0, 0, 0, 0 };
 		double baseline_offset = 0.0;
 
-		HashMap<Vector2i, FontForSizeFallback *> cache;
+		AHashMap<Vector2i, FontForSizeFallback *> cache;
 
 		bool face_init = false;
 		Dictionary supported_varaitions;

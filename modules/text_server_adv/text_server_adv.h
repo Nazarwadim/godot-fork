@@ -285,7 +285,7 @@ class TextServerAdvanced : public TextServerExtension {
 
 		Vector<ShelfPackTexture> textures;
 		HashMap<int64_t, int64_t> inv_glyph_map;
-		HashMap<int32_t, FontGlyph> glyph_map;
+		AHashMap<int32_t, FontGlyph> glyph_map;
 		HashMap<Vector2i, Vector2> kerning_map;
 		hb_font_t *hb_handle = nullptr;
 
@@ -341,7 +341,7 @@ class TextServerAdvanced : public TextServerExtension {
 		int extra_spacing[4] = { 0, 0, 0, 0 };
 		double baseline_offset = 0.0;
 
-		HashMap<Vector2i, FontForSizeAdvanced *> cache;
+		AHashMap<Vector2i, FontForSizeAdvanced *> cache;
 
 		bool face_init = false;
 		HashSet<uint32_t> supported_scripts;

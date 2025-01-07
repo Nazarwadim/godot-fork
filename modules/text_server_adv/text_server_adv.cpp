@@ -135,7 +135,7 @@ hb_position_t TextServerAdvanced::_bmp_get_glyph_h_advance(hb_font_t *p_font, vo
 		return 0;
 	}
 
-	HashMap<int32_t, FontGlyph>::Iterator E = bm_font->face->glyph_map.find(p_glyph);
+	AHashMap<int32_t, FontGlyph>::Iterator E = bm_font->face->glyph_map.find(p_glyph);
 	if (!E) {
 		return 0;
 	}
@@ -150,7 +150,7 @@ hb_position_t TextServerAdvanced::_bmp_get_glyph_v_advance(hb_font_t *p_font, vo
 		return 0;
 	}
 
-	HashMap<int32_t, FontGlyph>::Iterator E = bm_font->face->glyph_map.find(p_glyph);
+	AHashMap<int32_t, FontGlyph>::Iterator E = bm_font->face->glyph_map.find(p_glyph);
 	if (!E) {
 		return 0;
 	}
@@ -179,7 +179,7 @@ hb_bool_t TextServerAdvanced::_bmp_get_glyph_v_origin(hb_font_t *p_font, void *p
 		return false;
 	}
 
-	HashMap<int32_t, FontGlyph>::Iterator E = bm_font->face->glyph_map.find(p_glyph);
+	AHashMap<int32_t, FontGlyph>::Iterator E = bm_font->face->glyph_map.find(p_glyph);
 	if (!E) {
 		return false;
 	}
@@ -197,7 +197,7 @@ hb_bool_t TextServerAdvanced::_bmp_get_glyph_extents(hb_font_t *p_font, void *p_
 		return false;
 	}
 
-	HashMap<int32_t, FontGlyph>::Iterator E = bm_font->face->glyph_map.find(p_glyph);
+	AHashMap<int32_t, FontGlyph>::Iterator E = bm_font->face->glyph_map.find(p_glyph);
 	if (!E) {
 		return false;
 	}
@@ -1213,7 +1213,7 @@ _FORCE_INLINE_ bool TextServerAdvanced::_ensure_glyph(FontAdvanced *p_font_data,
 
 	int32_t glyph_index = p_glyph & 0xffffff; // Remove subpixel shifts.
 
-	HashMap<int32_t, FontGlyph>::Iterator E = fd->glyph_map.find(p_glyph);
+	AHashMap<int32_t, FontGlyph>::Iterator E = fd->glyph_map.find(p_glyph);
 	if (E) {
 		r_glyph = E->value;
 		return E->value.found;
@@ -1375,7 +1375,7 @@ _FORCE_INLINE_ bool TextServerAdvanced::_ensure_glyph(FontAdvanced *p_font_data,
 _FORCE_INLINE_ bool TextServerAdvanced::_ensure_cache_for_size(FontAdvanced *p_font_data, const Vector2i &p_size, FontForSizeAdvanced *&r_cache_for_size, bool p_silent) const {
 	ERR_FAIL_COND_V(p_size.x <= 0, false);
 
-	HashMap<Vector2i, FontForSizeAdvanced *>::Iterator E = p_font_data->cache.find(p_size);
+	AHashMap<Vector2i, FontForSizeAdvanced *>::Iterator E = p_font_data->cache.find(p_size);
 	if (E) {
 		r_cache_for_size = E->value;
 		return true;
@@ -2988,7 +2988,7 @@ PackedInt32Array TextServerAdvanced::_font_get_glyph_list(const RID &p_font_rid,
 	ERR_FAIL_COND_V(!_ensure_cache_for_size(fd, size, ffsd), PackedInt32Array());
 
 	PackedInt32Array ret;
-	const HashMap<int32_t, FontGlyph> &gl = ffsd->glyph_map;
+	const AHashMap<int32_t, FontGlyph> &gl = ffsd->glyph_map;
 	for (const KeyValue<int32_t, FontGlyph> &E : gl) {
 		ret.push_back(E.key);
 	}
@@ -3640,7 +3640,7 @@ String TextServerAdvanced::_font_get_supported_chars(const RID &p_font_rid) cons
 		return chars;
 	}
 #endif
-	const HashMap<int32_t, FontGlyph> &gl = ffsd->glyph_map;
+	const AHashMap<int32_t, FontGlyph> &gl = ffsd->glyph_map;
 	for (const KeyValue<int32_t, FontGlyph> &E : gl) {
 		chars = chars + String::chr(E.key);
 	}
@@ -3672,7 +3672,7 @@ PackedInt32Array TextServerAdvanced::_font_get_supported_glyphs(const RID &p_fon
 	}
 #endif
 	if (at_size) {
-		const HashMap<int32_t, FontGlyph> &gl = at_size->glyph_map;
+		const AHashMap<int32_t, FontGlyph> &gl = at_size->glyph_map;
 		for (const KeyValue<int32_t, FontGlyph> &E : gl) {
 			glyphs.push_back(E.key);
 		}

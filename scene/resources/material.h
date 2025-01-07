@@ -480,7 +480,7 @@ private:
 
 	bool orm;
 	RID shader_rid;
-	HashMap<StringName, Variant> pending_params;
+	AHashMap<StringName, Variant> pending_params;
 
 	Color albedo;
 	float specular = 0.0f;

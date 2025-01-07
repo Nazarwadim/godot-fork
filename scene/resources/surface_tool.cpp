@@ -755,7 +755,7 @@ void SurfaceTool::index() {
 		return; //already indexed
 	}
 
-	HashMap<Vertex, int, VertexHasher> indices;
+	AHashMap<Vertex, int, VertexHasher> indices = vertex_array.size();
 	LocalVector<Vertex> old_vertex_array = vertex_array;
 	vertex_array.clear();
 
@@ -765,7 +765,7 @@ void SurfaceTool::index() {
 		if (!idxptr) {
 			idx = indices.size();
 			vertex_array.push_back(vertex);
-			indices[vertex] = idx;
+			indices.insert_new(vertex, idx);
 		} else {
 			idx = *idxptr;
 		}
@@ -1197,7 +1197,7 @@ void SurfaceTool::generate_normals(bool p_flip) {
 
 	ERR_FAIL_COND((vertex_array.size() % 3) != 0);
 
-	HashMap<SmoothGroupVertex, Vector3, SmoothGroupVertexHasher> smooth_hash;
+	AHashMap<SmoothGroupVertex, Vector3, SmoothGroupVertexHasher> smooth_hash = vertex_array.size() / 2;
 
 	for (uint32_t vi = 0; vi < vertex_array.size(); vi += 3) {
 		Vertex *v = &vertex_array[vi];
@@ -1214,7 +1214,7 @@ void SurfaceTool::generate_normals(bool p_flip) {
 			if (v[i].smooth_group != UINT32_MAX) {
 				Vector3 *lv = smooth_hash.getptr(v[i]);
 				if (!lv) {
-					smooth_hash.insert(v[i], normal);
+					smooth_hash.insert_new(v[i], normal);
 				} else {
 					(*lv) += normal;
 				}
