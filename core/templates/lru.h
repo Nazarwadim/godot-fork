@@ -70,19 +70,20 @@ private:
 
 public:
 	const Pair *insert(const TKey &p_key, const TData &p_value) {
-		Element *e = _map.getptr(p_key);
+		AHashMap<TKey, Element, Hasher, Comparator>::Iterator it = _map.find(p_key);
 		Element n = _list.push_front(Pair(p_key, p_value));
 
-		if (e) {
+		if (it) {
 			ADDRESS_DIAGNOSTIC_WARNING_DISABLE;
 			if constexpr (BeforeEvict != nullptr) {
 				BeforeEvict((*e)->get().key, (*e)->get().data);
 			}
 			ADDRESS_DIAGNOSTIC_POP;
 			_list.erase(*e);
-			_map.erase(p_key);
+			it->value = _list.front();
+		} else {
+			_map.insert_new(p_key, _list.front());
 		}
-		_map[p_key] = _list.front();
 
 		while (_map.size() > capacity) {
 			Element d = _list.back();

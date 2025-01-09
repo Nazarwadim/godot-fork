@@ -607,12 +607,11 @@ private:
 			List<Connection>::Element *cE = nullptr;
 		};
 
-		MethodInfo user;
 		AHashMap<Callable, Slot, HashableHasher<Callable>> slot_map;
-		bool removable = false;
 	};
 
 	AHashMap<StringName, SignalData> signal_map;
+	AHashMap<StringName, MethodInfo> user_signal_map = 8u;
 	List<Connection> connections;
 #ifdef DEBUG_ENABLED
 	SafeRefCount _lock_index;
