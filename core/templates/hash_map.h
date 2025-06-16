@@ -233,6 +233,15 @@ private:
 		return elem;
 	}
 
+	void _clear_data() {
+		HashMapElement<TKey, TValue> *current = tail_element;
+		while (current != nullptr) {
+			HashMapElement<TKey, TValue> *prev = current->prev;
+			Allocator::delete_allocation(current);
+			current = prev;
+		}
+	}
+
 public:
 	_FORCE_INLINE_ uint32_t get_capacity() const { return hash_table_size_primes[capacity_index]; }
 	_FORCE_INLINE_ uint32_t size() const { return num_elements; }
@@ -247,16 +256,8 @@ public:
 		if (elements == nullptr || num_elements == 0) {
 			return;
 		}
-		uint32_t capacity = hash_table_size_primes[capacity_index];
-		for (uint32_t i = 0; i < capacity; i++) {
-			if (hashes[i] == EMPTY_HASH) {
-				continue;
-			}
-
-			hashes[i] = EMPTY_HASH;
-			Allocator::delete_allocation(elements[i]);
-			elements[i] = nullptr;
-		}
+		_clear_data();
+		memset(hashes, EMPTY_HASH, get_capacity() * sizeof(uint32_t));
 
 		tail_element = nullptr;
 		head_element = nullptr;
@@ -638,7 +639,7 @@ public:
 	}
 
 	~HashMap() {
-		clear();
+		_clear_data();
 
 		if (elements != nullptr) {
 			Memory::free_static(elements);
