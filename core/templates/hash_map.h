@@ -180,7 +180,7 @@ private:
 		num_elements = 0;
 		static_assert(EMPTY_HASH == 0, "Assuming EMPTY_HASH = 0 for alloc_static_zeroed call");
 		hashes = reinterpret_cast<uint32_t *>(Memory::alloc_static_zeroed(sizeof(uint32_t) * capacity));
-		elements = reinterpret_cast<HashMapElement<TKey, TValue> **>(Memory::alloc_static_zeroed(sizeof(HashMapElement<TKey, TValue> *) * capacity));
+		elements = reinterpret_cast<HashMapElement<TKey, TValue> **>(Memory::alloc_static(sizeof(HashMapElement<TKey, TValue> *) * capacity));
 
 		if (old_capacity == 0) {
 			// Nothing to do.
@@ -206,7 +206,7 @@ private:
 
 			static_assert(EMPTY_HASH == 0, "Assuming EMPTY_HASH = 0 for alloc_static_zeroed call");
 			hashes = reinterpret_cast<uint32_t *>(Memory::alloc_static_zeroed(sizeof(uint32_t) * capacity));
-			elements = reinterpret_cast<HashMapElement<TKey, TValue> **>(Memory::alloc_static_zeroed(sizeof(HashMapElement<TKey, TValue> *) * capacity));
+			elements = reinterpret_cast<HashMapElement<TKey, TValue> **>(Memory::alloc_static(sizeof(HashMapElement<TKey, TValue> *) * capacity));
 		}
 
 		if (num_elements + 1 > MAX_OCCUPANCY * capacity) {
@@ -255,7 +255,6 @@ public:
 
 			hashes[i] = EMPTY_HASH;
 			Allocator::delete_allocation(elements[i]);
-			elements[i] = nullptr;
 		}
 
 		tail_element = nullptr;
@@ -354,7 +353,6 @@ public:
 		}
 
 		Allocator::delete_allocation(elements[pos]);
-		elements[pos] = nullptr;
 
 		num_elements--;
 		return true;
@@ -384,7 +382,6 @@ public:
 			_increment_mod(next_pos, capacity);
 		}
 		hashes[pos] = EMPTY_HASH;
-		elements[pos] = nullptr;
 		// _insert_element will increment this again.
 		num_elements--;
 
