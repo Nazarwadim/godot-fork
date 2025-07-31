@@ -71,7 +71,7 @@ static_assert(__cplusplus >= 201703L);
 #ifdef DEV_ENABLED
 #define _FORCE_INLINE_ inline
 #else
-#define _FORCE_INLINE_ _ALWAYS_INLINE_
+#define _FORCE_INLINE_ inline
 #endif
 #endif
 

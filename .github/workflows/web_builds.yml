@@ -18,17 +18,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: Template w/ threads (target=template_release, threads=yes)
-            cache-name: web-template
-            target: template_release
-            sconsflags: threads=yes
-            tests: false
-            artifact: true
-
           - name: Template w/o threads (target=template_release, threads=no)
             cache-name: web-nothreads-template
             target: template_release
-            sconsflags: threads=no
+            sconsflags: threads=no disable_3d=yes disable_advanced_gui=yes production=yes lto=full
             tests: false
             artifact: true
 
