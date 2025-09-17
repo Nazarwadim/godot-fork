@@ -75,6 +75,7 @@ public:
 	void fill(T p_elem);
 
 	void remove_at(Size p_index) { _cowdata.remove_at(p_index); }
+	void remove_at_unordered(Size p_index) { _cowdata.remove_at_unordered(p_index); }
 	_FORCE_INLINE_ bool erase(const T &p_val) {
 		Size idx = find(p_val);
 		if (idx >= 0) {

@@ -36,6 +36,7 @@
 #include "core/object/object_id.h"
 #include "core/os/rw_lock.h"
 #include "core/os/spin_lock.h"
+#include "core/templates/a_hash_map.h"
 #include "core/templates/hash_map.h"
 #include "core/templates/hash_set.h"
 #include "core/templates/list.h"
@@ -613,17 +614,21 @@ private:
 	struct SignalData {
 		struct Slot {
 			int reference_count = 0;
-			Connection conn;
+			::Signal signal;
 			List<Connection>::Element *cE = nullptr;
 		};
 
 		MethodInfo user;
-		HashMap<Callable, Slot, HashableHasher<Callable>> slot_map;
+
+		Vector<Callable> callables;
+		Vector<uint32_t> flags;
+		AHashMap<Callable, Slot> slot_map = 4u;
+
 		bool removable = false;
 	};
 	friend struct _ObjectSignalLock;
 	mutable Mutex *signal_mutex = nullptr;
-	HashMap<StringName, SignalData> signal_map;
+	AHashMap<StringName, SignalData> signal_map = 4u;
 	List<Connection> connections;
 #ifdef DEBUG_ENABLED
 	SafeRefCount _lock_index;

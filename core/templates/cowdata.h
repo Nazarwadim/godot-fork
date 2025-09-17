@@ -203,6 +203,17 @@ public:
 		resize(len - 1);
 	}
 
+	void remove_at_unordered(Size p_index) {
+		Size len = size();
+		ERR_FAIL_INDEX(p_index, len);
+		T *p = ptrw();
+		len--;
+		if (len > p_index) {
+			p[p_index] = std::move(p[len]);
+		}
+		resize(len);
+	}
+
 	Error insert(Size p_pos, const T &p_val) {
 		Size new_size = size() + 1;
 		ERR_FAIL_INDEX_V(p_pos, new_size, ERR_INVALID_PARAMETER);

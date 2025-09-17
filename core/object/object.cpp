@@ -1212,13 +1212,8 @@ Error Object::emit_signalp(const StringName &p_name, const Variant **p_args, int
 		return ERR_CANT_ACQUIRE_RESOURCE; //no emit, signals blocked
 	}
 
-	constexpr int MAX_SLOTS_ON_STACK = 5;
-	// Don't default initialize the Callable objects on the stack, just reserve the space - we'll memnew_placement() them later.
-	alignas(Callable) uint8_t slot_callable_stack[sizeof(Callable) * MAX_SLOTS_ON_STACK];
-	uint32_t slot_flags_stack[MAX_SLOTS_ON_STACK];
-
-	Callable *slot_callables = (Callable *)slot_callable_stack;
-	uint32_t *slot_flags = slot_flags_stack;
+	Vector<Callable> slot_callables;
+	Vector<uint32_t> slot_flags;
 	uint32_t slot_count = 0;
 
 	{
@@ -1235,32 +1230,25 @@ Error Object::emit_signalp(const StringName &p_name, const Variant **p_args, int
 			return ERR_UNAVAILABLE;
 		}
 
-		if (s->slot_map.size() > MAX_SLOTS_ON_STACK) {
-			slot_callables = (Callable *)memalloc(sizeof(Callable) * s->slot_map.size());
-			slot_flags = (uint32_t *)memalloc(sizeof(uint32_t) * s->slot_map.size());
-		}
-
 		// Ensure that disconnecting the signal or even deleting the object
 		// will not affect the signal calling.
-		for (const KeyValue<Callable, SignalData::Slot> &slot_kv : s->slot_map) {
-			memnew_placement(&slot_callables[slot_count], Callable(slot_kv.value.conn.callable));
-			slot_flags[slot_count] = slot_kv.value.conn.flags;
-			++slot_count;
-		}
+		slot_callables = s->callables;
+		slot_flags = s->flags;
+		slot_count = slot_flags.size();
 
-		DEV_ASSERT(slot_count == s->slot_map.size());
+		DEV_ASSERT(slot_count == s->callables.size());
 
 		// Disconnect all one-shot connections before emitting to prevent recursion.
 		for (uint32_t i = 0; i < slot_count; ++i) {
-			bool disconnect = slot_flags[i] & CONNECT_ONE_SHOT;
+			bool disconnect = slot_flags.ptr()[i] & CONNECT_ONE_SHOT;
 #ifdef TOOLS_ENABLED
-			if (disconnect && (slot_flags[i] & CONNECT_PERSIST) && Engine::get_singleton()->is_editor_hint()) {
+			if (disconnect && (slot_flags.ptr()[i] & CONNECT_PERSIST) && Engine::get_singleton()->is_editor_hint()) {
 				// This signal was connected from the editor, and is being edited. Just don't disconnect for now.
 				disconnect = false;
 			}
 #endif
 			if (disconnect) {
-				_disconnect(p_name, slot_callables[i]);
+				_disconnect(p_name, slot_callables.ptr()[i]);
 			}
 		}
 	}
@@ -1277,8 +1265,8 @@ Error Object::emit_signalp(const StringName &p_name, const Variant **p_args, int
 	Error err = OK;
 
 	for (uint32_t i = 0; i < slot_count; ++i) {
-		const Callable &callable = slot_callables[i];
-		const uint32_t &flags = slot_flags[i];
+		const Callable &callable = slot_callables.ptr()[i];
+		const uint32_t flags = slot_flags.ptr()[i];
 
 		if (!callable.is_valid()) {
 			// Target might have been deleted during signal callback, this is expected and OK.
@@ -1312,15 +1300,6 @@ Error Object::emit_signalp(const StringName &p_name, const Variant **p_args, int
 				}
 			}
 		}
-	}
-
-	for (uint32_t i = 0; i < slot_count; ++i) {
-		slot_callables[i].~Callable();
-	}
-
-	if (slot_callables != (Callable *)slot_callable_stack) {
-		memfree(slot_callables);
-		memfree(slot_flags);
 	}
 
 	if (pending_unref) {
@@ -1447,9 +1426,14 @@ void Object::get_all_signal_connections(List<Connection> *p_connections) const {
 
 	for (const KeyValue<StringName, SignalData> &E : signal_map) {
 		const SignalData *s = &E.value;
-
-		for (const KeyValue<Callable, SignalData::Slot> &slot_kv : s->slot_map) {
-			p_connections->push_back(slot_kv.value.conn);
+		int i = 0;
+		for (const KeyValue<Callable, SignalData::Slot> &kv : s->slot_map) {
+			Connection conn;
+			conn.callable = s->callables[i];
+			conn.flags = s->flags[i];
+			conn.signal = kv.value.signal;
+			p_connections->push_back(conn);
+			i++;
 		}
 	}
 }
@@ -1462,8 +1446,14 @@ void Object::get_signal_connection_list(const StringName &p_signal, List<Connect
 		return; //nothing
 	}
 
-	for (const KeyValue<Callable, SignalData::Slot> &slot_kv : s->slot_map) {
-		p_connections->push_back(slot_kv.value.conn);
+	int i = 0;
+	for (const KeyValue<Callable, SignalData::Slot> &kv : s->slot_map) {
+		Connection conn;
+		conn.callable = s->callables[i];
+		conn.flags = s->flags[i];
+		conn.signal = kv.value.signal;
+		p_connections->push_back(conn);
+		i++;
 	}
 }
 
@@ -1474,8 +1464,8 @@ int Object::get_persistent_signal_connection_count() const {
 	for (const KeyValue<StringName, SignalData> &E : signal_map) {
 		const SignalData *s = &E.value;
 
-		for (const KeyValue<Callable, SignalData::Slot> &slot_kv : s->slot_map) {
-			if (slot_kv.value.conn.flags & CONNECT_PERSIST) {
+		for (const uint32_t &flag : s->flags) {
+			if (flag & CONNECT_PERSIST) {
 				count += 1;
 			}
 		}
@@ -1530,9 +1520,11 @@ Error Object::connect(const StringName &p_signal, const Callable &p_callable, ui
 	}
 
 	//compare with the base callable, so binds can be ignored
-	if (s->slot_map.has(*p_callable.get_base_comparator())) {
+	int index = s->slot_map.get_index(*p_callable.get_base_comparator());
+
+	if (index != -1) {
 		if (p_flags & CONNECT_REFERENCE_COUNTED) {
-			s->slot_map[*p_callable.get_base_comparator()].reference_count++;
+			s->slot_map.get_by_index(index).value.reference_count++;
 			return OK;
 		} else {
 			ERR_FAIL_V_MSG(ERR_INVALID_PARAMETER, vformat("Signal '%s' is already connected to given callable '%s' in that object.", p_signal, p_callable));
@@ -1547,7 +1539,6 @@ Error Object::connect(const StringName &p_signal, const Callable &p_callable, ui
 	conn.callable = p_callable;
 	conn.signal = ::Signal(this, p_signal);
 	conn.flags = p_flags;
-	slot.conn = conn;
 	if (target_object) {
 		slot.cE = target_object->connections.push_back(conn);
 	}
@@ -1556,7 +1547,9 @@ Error Object::connect(const StringName &p_signal, const Callable &p_callable, ui
 	}
 
 	//use callable version as key, so binds can be ignored
-	s->slot_map[*p_callable.get_base_comparator()] = slot;
+	s->slot_map.insert(*p_callable.get_base_comparator(), slot);
+	s->callables.push_back(p_callable);
+	s->flags.push_back(p_flags);
 
 	return OK;
 }
@@ -1578,7 +1571,6 @@ bool Object::is_connected(const StringName &p_signal, const Callable &p_callable
 
 		ERR_FAIL_V_MSG(false, vformat("Nonexistent signal: '%s'.", p_signal));
 	}
-
 	return s->slot_map.has(*p_callable.get_base_comparator());
 }
 
@@ -1617,10 +1609,10 @@ bool Object::_disconnect(const StringName &p_signal, const Callable &p_callable,
 		ERR_FAIL_COND_V_MSG(signal_is_valid, false, vformat("Attempt to disconnect a nonexistent connection from '%s'. Signal: '%s', callable: '%s'.", to_string(), p_signal, p_callable));
 	}
 	ERR_FAIL_NULL_V_MSG(s, false, vformat("Disconnecting nonexistent signal '%s' in '%s'.", p_signal, to_string()));
+	int found = s->slot_map.get_index(*p_callable.get_base_comparator());
+	ERR_FAIL_COND_V_MSG(found == -1, false, vformat("Attempt to disconnect a nonexistent connection from '%s'. Signal: '%s', callable: '%s'.", to_string(), p_signal, p_callable));
 
-	ERR_FAIL_COND_V_MSG(!s->slot_map.has(*p_callable.get_base_comparator()), false, vformat("Attempt to disconnect a nonexistent connection from '%s'. Signal: '%s', callable: '%s'.", to_string(), p_signal, p_callable));
-
-	SignalData::Slot *slot = &s->slot_map[*p_callable.get_base_comparator()];
+	SignalData::Slot *slot = &s->slot_map.get_by_index(found).value;
 
 	if (!p_force) {
 		slot->reference_count--; // by default is zero, if it was not referenced it will go below it
@@ -1636,7 +1628,9 @@ bool Object::_disconnect(const StringName &p_signal, const Callable &p_callable,
 		}
 	}
 
-	s->slot_map.erase(*p_callable.get_base_comparator());
+	s->slot_map.erase_by_index(found);
+	s->callables.remove_at_unordered(found);
+	s->flags.remove_at_unordered(found);
 
 	if (s->slot_map.is_empty() && ClassDB::has_signal(get_class_name(), p_signal)) {
 		//not user signal, delete
@@ -2304,11 +2298,13 @@ Object::~Object() {
 			KeyValue<StringName, SignalData> &E = *signal_map.begin();
 			SignalData *s = &E.value;
 
+			int i = 0;
 			for (const KeyValue<Callable, SignalData::Slot> &slot_kv : s->slot_map) {
-				Object *target = slot_kv.value.conn.callable.get_object();
+				Object *target = s->callables[i].get_object();
 				if (likely(target)) {
 					target->connections.erase(slot_kv.value.cE);
 				}
+				i++;
 			}
 
 			signal_map.erase(E.key);
