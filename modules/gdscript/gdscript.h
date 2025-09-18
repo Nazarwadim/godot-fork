@@ -370,6 +370,7 @@ class GDScriptInstance : public ScriptInstance {
 	ObjectID owner_id;
 	Object *owner = nullptr;
 	Ref<GDScript> script;
+	Variant script_var;
 #ifdef DEBUG_ENABLED
 	HashMap<StringName, int> member_indices_cache; //used only for hot script reloading
 #endif

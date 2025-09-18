@@ -647,11 +647,24 @@ Variant GDScriptFunction::call(GDScriptInstance *p_instance, const Variant **p_a
 	if (p_instance) {
 		memnew_placement(&stack[ADDR_STACK_SELF], Variant(p_instance->owner));
 		script = p_instance->script.ptr();
+		if ((Object *)p_instance->script_var != script) {
+			p_instance->script_var = script;
+		}
+
+		void *cpy_destination = &stack[ADDR_STACK_CLASS];
+		const void *cpy_source = &p_instance->script_var;
+		memcpy(cpy_destination, cpy_source, sizeof(Variant));
 	} else {
 		memnew_placement(&stack[ADDR_STACK_SELF], Variant);
 		script = _script;
+
+		if ((Object *)_script_var != script) {
+			_script_var = script;
+		}
+		void *cpy_destination = &stack[ADDR_STACK_CLASS];
+		const void *cpy_source = &_script_var;
+		memcpy(cpy_destination, cpy_source, sizeof(Variant));
 	}
-	memnew_placement(&stack[ADDR_STACK_CLASS], Variant(script));
 	memnew_placement(&stack[ADDR_STACK_NIL], Variant);
 
 	String err_text;
@@ -3983,7 +3996,9 @@ Variant GDScriptFunction::call(GDScriptInstance *p_instance, const Variant **p_a
 
 	// Always free reserved addresses, since they are never copied.
 	for (int i = 0; i < FIXED_ADDRESSES_MAX; i++) {
-		stack[i].~Variant();
+		if (i != ADDR_STACK_CLASS) {
+			stack[i].~Variant();
+		}
 	}
 
 	call_depth--;

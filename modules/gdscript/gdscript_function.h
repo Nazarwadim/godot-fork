@@ -469,6 +469,7 @@ private:
 	Variant rpc_config;
 
 	GDScript *_script = nullptr;
+	Variant _script_var;
 	int _initial_line = 0;
 	int _argument_count = 0;
 	int _vararg_index = -1;
